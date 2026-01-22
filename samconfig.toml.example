@@ -1,0 +1,22 @@
+# SAM Configuration Template
+# Copy this to samconfig.toml and update values
+
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "secure-file-portal"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM CAPABILITY_NAMED_IAM"
+# Uncomment and set these parameters:
+# parameter_overrides = """
+#   DatabaseUrl='postgresql://user:password@host:5432/dbname'
+#   SecretKey='your-random-secret-key-32-chars-min'
+#   S3BucketName='your-unique-bucket-name'
+#   VpcId='vpc-xxxxxxxxx'
+#   SubnetIds='subnet-xxxxxx,subnet-yyyyyy'
+#   SecurityGroupId='sg-xxxxxxxxx'
+# """
+
+[default.build.parameters]
+use_container = false

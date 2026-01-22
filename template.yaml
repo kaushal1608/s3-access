@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Secure Serverless S3 File Portal
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.10
+
+Parameters:
+  DatabaseUrl:
+    Type: String
+    Description: PostgreSQL connection string
+    NoEcho: true
+  SecretKey:
+    Type: String
+    Description: JWT Secret Key
+    NoEcho: true
+  S3BucketName:
+    Type: String
+    Description: S3 Bucket Name for file storage
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID for Lambda
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnet IDs for Lambda
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group for Lambda
+
+Resources:
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SecureFilePortalLambdaRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${S3BucketName}
+                  - !Sub arn:aws:s3:::${S3BucketName}/*
+        - PolicyName: CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+
+  # Lambda Function
+  FilePortalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SecureFilePortalAPI
+      CodeUri: .
+      Handler: app.main.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        SubnetIds: !Ref SubnetIds
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          SECRET_KEY: !Ref SecretKey
+          S3_BUCKET_NAME: !Ref S3BucketName
+          AWS_REGION: !Ref AWS::Region
+      Events:
+        ApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+        RootApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: ANY
+
+  # S3 Bucket for file storage
+  FileStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  LambdaFunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt FilePortalFunction.Arn
+  S3BucketArn:
+    Description: S3 Bucket ARN
+    Value: !GetAtt FileStorageBucket.Arn
