@@ -17,8 +17,12 @@ class FolderResponse(FolderBase):
     model_config = {"from_attributes": True}
 
 class FolderAccessCreate(BaseModel):
-    user_email: str
     folder_id: int
+    access_password: str  # Password to access the shared folder
+
+class FolderAccessVerify(BaseModel):
+    folder_id: int
+    access_password: str
 
 class FolderListResponse(FolderResponse):
-    pass
+    is_shared: bool = False  # Flag to indicate if folder is shared with current user

@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Secure Serverless File Portal - Upload, manage, and share your files securely with S3-powered storage">
+    <meta name="description"
+        content="Secure Serverless File Portal - Upload, manage, and share your files securely with S3-powered storage">
     <title>CloudVault - Secure File Portal</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,6 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
     <!-- Animated Background -->
     <div class="animated-bg">
@@ -108,7 +111,7 @@
                     <span>CloudVault</span>
                 </div>
             </div>
-            
+
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-view="folders">
                     <i class="fas fa-folder"></i>
@@ -117,6 +120,10 @@
                 <a href="#" class="nav-item" data-view="shared">
                     <i class="fas fa-share-nodes"></i>
                     <span>Shared with Me</span>
+                </a>
+                <a href="#" class="nav-item" id="access-shared-btn">
+                    <i class="fas fa-key"></i>
+                    <span>Access Folder</span>
                 </a>
             </nav>
 
@@ -253,18 +260,56 @@
             </div>
             <form id="share-folder-form" class="modal-body">
                 <div class="form-group">
-                    <label for="share-email">User Email</label>
+                    <label for="share-password">Create Access Password</label>
                     <div class="input-wrapper">
-                        <i class="fas fa-envelope"></i>
-                        <input type="email" id="share-email" placeholder="user@example.com" required>
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="share-password" placeholder="Enter a password for sharing" required
+                            minlength="4">
                     </div>
-                    <p class="form-hint">The user will have read-only access to this folder</p>
+                    <p class="form-hint">Share this password with others so they can access this folder</p>
                 </div>
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-ghost modal-cancel">Cancel</button>
+                    <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-share"></i>
-                        <span>Share</span>
+                        <span>Create Share Link</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Access Shared Folder Modal -->
+    <div id="access-folder-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-key"></i> Access Shared Folder</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="access-folder-form" class="modal-body">
+                <div class="form-group">
+                    <label for="access-folder-id">Folder ID</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-folder"></i>
+                        <input type="number" id="access-folder-id" placeholder="Enter folder ID" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="access-password">Access Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="access-password" placeholder="Enter the shared password" required>
+                    </div>
+                    <p class="form-hint">Enter the password shared with you by the folder owner</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-unlock"></i>
+                        <span>Access Folder</span>
                     </button>
                 </div>
             </form>
@@ -323,4 +368,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>

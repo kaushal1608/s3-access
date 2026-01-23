@@ -45,3 +45,12 @@ def list_files(prefix: str):
     except ClientError as e:
         print(f"Error listing files: {e}")
         raise HTTPException(status_code=500, detail="Could not list files from S3")
+
+def delete_s3_object(s3_key: str):
+    """Delete an object from S3"""
+    try:
+        s3_client.delete_object(Bucket=S3_BUCKET, Key=s3_key)
+        return True
+    except ClientError as e:
+        print(f"Error deleting S3 object: {e}")
+        raise HTTPException(status_code=500, detail="Could not delete file from S3")

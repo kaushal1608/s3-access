@@ -6,14 +6,14 @@ import uuid
 from app.database import get_db
 from app.models.users import User
 from app.models.folders import Folder, FolderAccess
-from app.schemas.folder import FolderCreate, FolderResponse, FolderAccessCreate, FolderListResponse
+from app.schemas.folder import FolderCreate, FolderResponse, FolderAccessCreate, FolderListResponse, FolderAccessVerify
 from app.auth.dependencies import get_current_user
+from app.auth.jwt_handler import get_password_hash, verify_password
 
 router = APIRouter(prefix="/folders", tags=["Folders"])
 
 @router.post("/", response_model=FolderResponse)
 def create_folder(folder: FolderCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # Check if folder name exists for user (optional constraint)
     # Generate unique S3 prefix
     s3_prefix = f"{current_user.id}/{uuid.uuid4()}/"
     
@@ -27,33 +27,123 @@ def create_folder(folder: FolderCreate, db: Session = Depends(get_db), current_u
 def list_folders(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Return folders owned by user OR shared with user
     owned_folders = db.query(Folder).filter(Folder.owner_id == current_user.id).all()
-    shared_access = db.query(FolderAccess).filter(FolderAccess.user_id == current_user.id).all()
-    shared_folders = [access.folder for access in shared_access]
     
-    return owned_folders + shared_folders
+    # Get shared folders (where user has access)
+    shared_access = db.query(FolderAccess).filter(FolderAccess.user_id == current_user.id).all()
+    shared_folders = [access.folder for access in shared_access if access.folder]
+    
+    # Mark shared folders
+    result = []
+    for folder in owned_folders:
+        folder_dict = FolderListResponse.model_validate(folder)
+        folder_dict.is_shared = False
+        result.append(folder_dict)
+    
+    for folder in shared_folders:
+        if folder and folder not in owned_folders:
+            folder_dict = FolderListResponse.model_validate(folder)
+            folder_dict.is_shared = True
+            result.append(folder_dict)
+    
+    return result
+
+@router.delete("/{folder_id}")
+def delete_folder(folder_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Delete a folder - only the owner can delete"""
+    folder = db.query(Folder).filter(Folder.id == folder_id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    
+    # Only owner can delete
+    if folder.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can delete this folder")
+    
+    db.delete(folder)
+    db.commit()
+    return {"message": "Folder deleted successfully"}
 
 @router.post("/share")
 def share_folder(access: FolderAccessCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Share a folder with a password - anyone with the password can access"""
     folder = db.query(Folder).filter(Folder.id == access.folder_id).first()
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
     
+    # Only owner can share
     if folder.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to share this folder")
+        raise HTTPException(status_code=403, detail="Only the owner can share this folder")
     
-    user_to_share = db.query(User).filter(User.email == access.user_email).first()
-    if not user_to_share:
-        raise HTTPException(status_code=404, detail="User email not found")
+    # Hash the access password
+    password_hash = get_password_hash(access.access_password)
     
-    if user_to_share.id == current_user.id:
-         raise HTTPException(status_code=400, detail="Cannot share with yourself")
-
-    # Check if already shared
-    existing = db.query(FolderAccess).filter(FolderAccess.folder_id == folder.id, FolderAccess.user_id == user_to_share.id).first()
-    if existing:
-        return {"message": "Already shared"}
-
-    new_access = FolderAccess(folder_id=folder.id, user_id=user_to_share.id)
+    # Create password-based access (no specific user)
+    new_access = FolderAccess(
+        folder_id=folder.id, 
+        user_id=None,  # No specific user - password based access
+        access_password_hash=password_hash
+    )
     db.add(new_access)
     db.commit()
-    return {"message": f"Folder shared with {access.user_email}"}
+    
+    return {"message": "Folder shared successfully. Share the password with others to grant access."}
+
+@router.post("/access")
+def access_shared_folder(access: FolderAccessVerify, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Access a shared folder using password"""
+    folder = db.query(Folder).filter(Folder.id == access.folder_id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+    
+    # Check if user already has access
+    existing_access = db.query(FolderAccess).filter(
+        FolderAccess.folder_id == folder.id,
+        FolderAccess.user_id == current_user.id
+    ).first()
+    
+    if existing_access:
+        return {"message": "You already have access to this folder"}
+    
+    # Check if this is the owner
+    if folder.owner_id == current_user.id:
+        return {"message": "You are the owner of this folder"}
+    
+    # Find password-based access entries for this folder
+    password_accesses = db.query(FolderAccess).filter(
+        FolderAccess.folder_id == folder.id,
+        FolderAccess.access_password_hash.isnot(None)
+    ).all()
+    
+    # Verify password against any of the password entries
+    password_valid = False
+    for pa in password_accesses:
+        if verify_password(access.access_password, pa.access_password_hash):
+            password_valid = True
+            break
+    
+    if not password_valid:
+        raise HTTPException(status_code=401, detail="Invalid access password")
+    
+    # Grant access to this user
+    new_access = FolderAccess(
+        folder_id=folder.id,
+        user_id=current_user.id,
+        access_password_hash=None  # User-based access, no password needed anymore
+    )
+    db.add(new_access)
+    db.commit()
+    
+    return {"message": "Access granted successfully"}
+
+@router.get("/shared")
+def list_shared_folders(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Get folders shared with current user"""
+    shared_access = db.query(FolderAccess).filter(FolderAccess.user_id == current_user.id).all()
+    shared_folders = []
+    
+    for access in shared_access:
+        if access.folder:
+            folder_dict = FolderListResponse.model_validate(access.folder)
+            folder_dict.is_shared = True
+            shared_folders.append(folder_dict)
+    
+    return shared_folders

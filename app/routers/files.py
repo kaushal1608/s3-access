@@ -9,7 +9,7 @@ from app.models.folders import Folder, FolderAccess
 from app.models.files import File
 from app.schemas.file import FileResponse, FileUploadURL, FileDownloadURL, FileBase
 from app.auth.dependencies import get_current_user
-from app.s3.service import generate_presigned_upload_url, generate_presigned_download_url, list_files
+from app.s3.service import generate_presigned_upload_url, generate_presigned_download_url, delete_s3_object
 
 router = APIRouter(tags=["Files"])
 
@@ -26,29 +26,13 @@ def get_upload_url(folder_id: int, file_info: FileBase, db: Session = Depends(ge
     # Generate S3 Key
     s3_key = f"{folder.s3_prefix}{uuid.uuid4()}-{file_info.filename}"
     
-    # Pre-create DB record (optional, but good for tracking)
-    # Note: Size is unknown until upload completion webhook or we just trust client? 
-    # For now, we create the record AFTER upload or here with 0 size?
-    # Better: Client uploads to S3, then calls another endpoint to confirm. 
-    # OR: We just give URL here.
-    # Requirement says "POST /upload".
-    # Implementation: Return URL. S3 triggers lambda to update DB? Or client calls confirm?
-    # Let's simple model: Return URL + Create Pending Entry or just URL.
-    # To keep it simple without S3 triggers: We will create a DB record with size 0, and client should update it?
-    # OR: we just return URL, and have a `POST /files` endpoint to register the file after upload?
-    # Current req: "POST /upload".
-    
     presigned_url = generate_presigned_upload_url(s3_key)
     
-    # We will speculatively create the file entry to return an ID, but strictly it's not "there" yet.
-    # Actually, better flow is: Client asks for URL -> Uploads -> Calls `confirm_upload` (not in reqs but needed for DB/File sync).
-    # Since I must provide "POST /folders", "POST /upload", "GET /download".
-    # I will assume POST /upload provides auth to upload, and also creates the file metadata entry.
-    
+    # Create file entry
     new_file = File(
         filename=file_info.filename,
         s3_key=s3_key,
-        size=0, # Placeholder
+        size=0,  # Placeholder
         folder_id=folder.id,
         uploaded_by_id=current_user.id,
         content_type="application/octet-stream"
@@ -81,6 +65,31 @@ def get_download_url(file_id: int, db: Session = Depends(get_db), current_user: 
         
     url = generate_presigned_download_url(file_record.s3_key)
     return {"download_url": url}
+
+@router.delete("/files/{file_id}")
+def delete_file(file_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Delete a file - only the folder owner can delete"""
+    file_record = db.query(File).filter(File.id == file_id).first()
+    if not file_record:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    folder = file_record.folder
+    
+    # Only folder owner can delete files
+    if folder.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the folder owner can delete files")
+    
+    # Try to delete from S3 (ignore errors if S3 not configured)
+    try:
+        delete_s3_object(file_record.s3_key)
+    except Exception as e:
+        print(f"Warning: Could not delete from S3: {e}")
+    
+    # Delete from database
+    db.delete(file_record)
+    db.commit()
+    
+    return {"message": "File deleted successfully"}
 
 @router.get("/folders/{folder_id}/files", response_model=List[FileResponse])
 def list_folder_files(folder_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

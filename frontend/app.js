@@ -1,7 +1,7 @@
 /**
  * CloudVault - Secure File Portal
  * Frontend JavaScript Application
- * Integrated with FastAPI Backend
+ * Blue & White Theme - Simplified UI
  */
 
 // ==========================================
@@ -9,9 +9,6 @@
 // ==========================================
 
 const CONFIG = {
-    // API Base URL - Change this to your deployed API endpoint
-    // For local development: 'http://127.0.0.1:8000'
-    // For AWS Lambda: 'https://your-api-gateway-url.amazonaws.com/prod'
     API_BASE_URL: 'http://127.0.0.1:8000',
     TOKEN_KEY: 'cloudvault_token',
     USER_KEY: 'cloudvault_user'
@@ -49,7 +46,7 @@ const elements = {
     // Dashboard
     sidebar: document.querySelector('.sidebar'),
     mobileMenuBtn: document.getElementById('mobile-menu-btn'),
-    navItems: document.querySelectorAll('.nav-item'),
+    navItems: document.querySelectorAll('.nav-item[data-view]'),
     userEmail: document.getElementById('user-email'),
     logoutBtn: document.getElementById('logout-btn'),
     pageTitle: document.getElementById('page-title'),
@@ -72,15 +69,18 @@ const elements = {
     uploadBtn: document.getElementById('upload-btn'),
     emptyUploadBtn: document.getElementById('empty-upload-btn'),
     shareFolderBtn: document.getElementById('share-folder-btn'),
+    accessSharedBtn: document.getElementById('access-shared-btn'),
 
     // Modals
     createFolderModal: document.getElementById('create-folder-modal'),
     shareFolderModal: document.getElementById('share-folder-modal'),
+    accessFolderModal: document.getElementById('access-folder-modal'),
     uploadModal: document.getElementById('upload-modal'),
 
     // Forms
     createFolderForm: document.getElementById('create-folder-form'),
     shareFolderForm: document.getElementById('share-folder-form'),
+    accessFolderForm: document.getElementById('access-folder-form'),
 
     // Upload
     dropZone: document.getElementById('drop-zone'),
@@ -164,51 +164,20 @@ function formatFileSize(bytes) {
 function getFileIcon(filename) {
     const ext = filename.split('.').pop().toLowerCase();
     const iconMap = {
-        // Images
         jpg: { icon: 'fa-file-image', class: 'image' },
         jpeg: { icon: 'fa-file-image', class: 'image' },
         png: { icon: 'fa-file-image', class: 'image' },
         gif: { icon: 'fa-file-image', class: 'image' },
-        svg: { icon: 'fa-file-image', class: 'image' },
-        webp: { icon: 'fa-file-image', class: 'image' },
-
-        // Videos
-        mp4: { icon: 'fa-file-video', class: 'video' },
-        webm: { icon: 'fa-file-video', class: 'video' },
-        mov: { icon: 'fa-file-video', class: 'video' },
-        avi: { icon: 'fa-file-video', class: 'video' },
-
-        // Documents
         pdf: { icon: 'fa-file-pdf', class: 'document' },
         doc: { icon: 'fa-file-word', class: 'document' },
         docx: { icon: 'fa-file-word', class: 'document' },
         xls: { icon: 'fa-file-excel', class: 'document' },
         xlsx: { icon: 'fa-file-excel', class: 'document' },
-        ppt: { icon: 'fa-file-powerpoint', class: 'document' },
-        pptx: { icon: 'fa-file-powerpoint', class: 'document' },
-        txt: { icon: 'fa-file-lines', class: 'document' },
-
-        // Audio
+        mp4: { icon: 'fa-file-video', class: 'video' },
         mp3: { icon: 'fa-file-audio', class: 'audio' },
-        wav: { icon: 'fa-file-audio', class: 'audio' },
-        ogg: { icon: 'fa-file-audio', class: 'audio' },
-
-        // Archives
         zip: { icon: 'fa-file-zipper', class: 'archive' },
-        rar: { icon: 'fa-file-zipper', class: 'archive' },
-        '7z': { icon: 'fa-file-zipper', class: 'archive' },
-        tar: { icon: 'fa-file-zipper', class: 'archive' },
-        gz: { icon: 'fa-file-zipper', class: 'archive' },
-
-        // Code
-        js: { icon: 'fa-file-code', class: 'document' },
-        ts: { icon: 'fa-file-code', class: 'document' },
-        html: { icon: 'fa-file-code', class: 'document' },
-        css: { icon: 'fa-file-code', class: 'document' },
-        json: { icon: 'fa-file-code', class: 'document' },
-        py: { icon: 'fa-file-code', class: 'document' }
+        txt: { icon: 'fa-file-lines', class: 'document' }
     };
-
     return iconMap[ext] || { icon: 'fa-file', class: '' };
 }
 
@@ -219,12 +188,9 @@ function escapeHtml(text) {
 }
 
 // ==========================================
-// API Functions - Matching FastAPI Backend
+// API Functions
 // ==========================================
 
-/**
- * Make authenticated API request
- */
 async function apiRequest(endpoint, options = {}) {
     const url = `${CONFIG.API_BASE_URL}${endpoint}`;
     const headers = {
@@ -237,41 +203,23 @@ async function apiRequest(endpoint, options = {}) {
     }
 
     try {
-        const response = await fetch(url, {
-            ...options,
-            headers
-        });
-
-        // Handle empty response
+        const response = await fetch(url, { ...options, headers });
         const text = await response.text();
         let data = null;
         if (text) {
-            try {
-                data = JSON.parse(text);
-            } catch {
-                data = { message: text };
-            }
+            try { data = JSON.parse(text); } catch { data = { message: text }; }
         }
-
         if (!response.ok) {
             throw new Error(data?.detail || data?.message || 'Request failed');
         }
-
         return data;
     } catch (error) {
-        console.error('API Request Error:', error);
+        console.error('API Error:', error);
         throw error;
     }
 }
 
-// ==========================================
-// Auth API - Matches /auth endpoints
-// ==========================================
-
-/**
- * Login user - POST /auth/login
- * Backend expects JSON body with email and password
- */
+// Auth API
 async function login(email, password) {
     return await apiRequest('/auth/login', {
         method: 'POST',
@@ -279,9 +227,6 @@ async function login(email, password) {
     });
 }
 
-/**
- * Register user - POST /auth/register
- */
 async function register(email, password) {
     return await apiRequest('/auth/register', {
         method: 'POST',
@@ -289,20 +234,15 @@ async function register(email, password) {
     });
 }
 
-// ==========================================
-// Folders API - Matches /folders endpoints
-// ==========================================
-
-/**
- * Get all folders (owned + shared) - GET /folders/
- */
+// Folders API
 async function getFolders() {
     return await apiRequest('/folders/');
 }
 
-/**
- * Create new folder - POST /folders/
- */
+async function getSharedFolders() {
+    return await apiRequest('/folders/shared');
+}
+
 async function createFolder(name) {
     return await apiRequest('/folders/', {
         method: 'POST',
@@ -310,34 +250,31 @@ async function createFolder(name) {
     });
 }
 
-/**
- * Share folder with user - POST /folders/share
- */
-async function shareFolder(folderId, userEmail) {
-    return await apiRequest('/folders/share', {
-        method: 'POST',
-        body: JSON.stringify({
-            folder_id: folderId,
-            user_email: userEmail
-        })
+async function deleteFolder(folderId) {
+    return await apiRequest(`/folders/${folderId}`, {
+        method: 'DELETE'
     });
 }
 
-// ==========================================
-// Files API - Matches /files endpoints
-// ==========================================
+async function shareFolder(folderId, password) {
+    return await apiRequest('/folders/share', {
+        method: 'POST',
+        body: JSON.stringify({ folder_id: folderId, access_password: password })
+    });
+}
 
-/**
- * Get files in folder - GET /folders/{folder_id}/files
- */
+async function accessSharedFolder(folderId, password) {
+    return await apiRequest('/folders/access', {
+        method: 'POST',
+        body: JSON.stringify({ folder_id: folderId, access_password: password })
+    });
+}
+
+// Files API
 async function getFiles(folderId) {
     return await apiRequest(`/folders/${folderId}/files`);
 }
 
-/**
- * Get upload URL - POST /upload/{folder_id}
- * Returns presigned S3 upload URL
- */
 async function getUploadUrl(folderId, filename) {
     return await apiRequest(`/upload/${folderId}`, {
         method: 'POST',
@@ -345,12 +282,14 @@ async function getUploadUrl(folderId, filename) {
     });
 }
 
-/**
- * Get download URL - GET /download/{file_id}
- * Returns presigned S3 download URL
- */
 async function getDownloadUrl(fileId) {
     return await apiRequest(`/download/${fileId}`);
+}
+
+async function deleteFile(fileId) {
+    return await apiRequest(`/files/${fileId}`, {
+        method: 'DELETE'
+    });
 }
 
 // ==========================================
@@ -358,7 +297,6 @@ async function getDownloadUrl(fileId) {
 // ==========================================
 
 function initAuth() {
-    // Check for existing session
     const token = localStorage.getItem(CONFIG.TOKEN_KEY);
     const user = localStorage.getItem(CONFIG.USER_KEY);
 
@@ -428,8 +366,8 @@ function switchToFilesView(folder) {
     elements.currentFolderName.textContent = folder.name;
     elements.pageTitle.textContent = folder.name;
 
-    // Hide share/upload buttons for shared folders (not owned)
-    const isOwner = folder.owner_id === state.user.id || !folder.owner_id;
+    // Show/hide upload and share buttons based on ownership
+    const isOwner = folder.owner_id === state.user.id;
     elements.uploadBtn.style.display = isOwner ? '' : 'none';
     elements.shareFolderBtn.style.display = isOwner ? '' : 'none';
 
@@ -452,18 +390,25 @@ function renderFolders() {
     elements.emptyFolders.classList.add('hidden');
 
     elements.foldersGrid.innerHTML = folders.map(folder => {
-        // Determine if this is a shared folder (we don't own it)
-        const isShared = folder.owner_id && folder.owner_id !== state.user.id;
+        const isOwner = folder.owner_id === state.user.id;
+        const isShared = folder.is_shared || (!isOwner && folder.owner_id);
 
         return `
             <div class="folder-card" data-folder-id="${folder.id}">
                 ${isShared ? '<div class="shared-badge"><i class="fas fa-share"></i> Shared</div>' : ''}
+                ${isOwner ? `
+                    <div class="folder-actions">
+                        <button class="folder-action-btn delete" data-folder-id="${folder.id}" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                ` : ''}
                 <div class="folder-icon">
                     <i class="fas fa-folder"></i>
                 </div>
                 <div class="folder-name">${escapeHtml(folder.name)}</div>
                 <div class="folder-meta">
-                    <span><i class="fas fa-key"></i> ${folder.s3_prefix ? folder.s3_prefix.split('/')[0].substring(0, 8) + '...' : 'Local'}</span>
+                    <span>ID: ${folder.id}</span>
                 </div>
             </div>
         `;
@@ -478,10 +423,22 @@ function renderFolders() {
             if (folder) switchToFilesView(folder);
         });
     });
+
+    // Add delete handlers
+    document.querySelectorAll('.folder-action-btn.delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const folderId = parseInt(btn.dataset.folderId);
+            if (confirm('Are you sure you want to delete this folder? All files will be deleted.')) {
+                await handleDeleteFolder(folderId);
+            }
+        });
+    });
 }
 
 function renderFiles() {
     const files = state.files;
+    const isOwner = state.currentFolder && state.currentFolder.owner_id === state.user.id;
 
     if (!files || files.length === 0) {
         elements.filesGrid.innerHTML = '';
@@ -504,6 +461,11 @@ function renderFiles() {
                     <button class="file-action-btn download-file" data-file-id="${file.id}" title="Download">
                         <i class="fas fa-download"></i>
                     </button>
+                    ${isOwner ? `
+                        <button class="file-action-btn delete delete-file" data-file-id="${file.id}" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -516,6 +478,16 @@ function renderFiles() {
             await handleDownloadFile(fileId);
         });
     });
+
+    // Add delete handlers
+    document.querySelectorAll('.delete-file').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const fileId = parseInt(btn.dataset.fileId);
+            if (confirm('Are you sure you want to delete this file?')) {
+                await handleDeleteFile(fileId);
+            }
+        });
+    });
 }
 
 // ==========================================
@@ -525,11 +497,10 @@ function renderFiles() {
 async function loadFolders() {
     try {
         showLoading();
-        const folders = await getFolders();
+        const folders = state.isSharedView ? await getSharedFolders() : await getFolders();
         state.folders = folders || [];
         renderFolders();
     } catch (error) {
-        console.error('Load folders error:', error);
         showToast('error', 'Error', 'Failed to load folders: ' + error.message);
     } finally {
         hideLoading();
@@ -543,7 +514,6 @@ async function loadFiles(folderId) {
         state.files = files || [];
         renderFiles();
     } catch (error) {
-        console.error('Load files error:', error);
         showToast('error', 'Error', 'Failed to load files: ' + error.message);
     } finally {
         hideLoading();
@@ -593,11 +563,6 @@ async function handleRegister(e) {
         return;
     }
 
-    if (password.length < 6) {
-        showAuthMessage('error', 'Password must be at least 6 characters');
-        return;
-    }
-
     try {
         showLoading();
         hideAuthMessage();
@@ -605,8 +570,6 @@ async function handleRegister(e) {
         await register(email, password);
 
         showAuthMessage('success', 'Account created! You can now sign in.');
-
-        // Switch to login tab
         document.querySelector('.tab-btn[data-tab="login"]').click();
         document.getElementById('login-email').value = email;
     } catch (error) {
@@ -632,9 +595,22 @@ async function handleCreateFolder(e) {
         nameInput.value = '';
 
         await loadFolders();
-        showToast('success', 'Folder Created', `"${name}" has been created successfully`);
+        showToast('success', 'Folder Created', `"${name}" has been created`);
     } catch (error) {
-        showToast('error', 'Error', error.message || 'Failed to create folder');
+        showToast('error', 'Error', error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function handleDeleteFolder(folderId) {
+    try {
+        showLoading();
+        await deleteFolder(folderId);
+        await loadFolders();
+        showToast('success', 'Folder Deleted', 'The folder has been deleted');
+    } catch (error) {
+        showToast('error', 'Error', error.message);
     } finally {
         hideLoading();
     }
@@ -643,21 +619,62 @@ async function handleCreateFolder(e) {
 async function handleShareFolder(e) {
     e.preventDefault();
 
-    const emailInput = document.getElementById('share-email');
-    const email = emailInput.value.trim();
+    const passwordInput = document.getElementById('share-password');
+    const password = passwordInput.value;
 
-    if (!email || !state.currentFolderId) return;
+    if (!password || !state.currentFolderId) return;
 
     try {
         showLoading();
-        await shareFolder(state.currentFolderId, email);
+        await shareFolder(state.currentFolderId, password);
 
         closeModal(elements.shareFolderModal);
-        emailInput.value = '';
+        passwordInput.value = '';
 
-        showToast('success', 'Folder Shared', `Folder has been shared with ${email}`);
+        showToast('success', 'Folder Shared', `Share this password with others: ${password}\nFolder ID: ${state.currentFolderId}`);
     } catch (error) {
-        showToast('error', 'Error', error.message || 'Failed to share folder');
+        showToast('error', 'Error', error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function handleAccessFolder(e) {
+    e.preventDefault();
+
+    const folderIdInput = document.getElementById('access-folder-id');
+    const passwordInput = document.getElementById('access-password');
+
+    const folderId = parseInt(folderIdInput.value);
+    const password = passwordInput.value;
+
+    if (!folderId || !password) return;
+
+    try {
+        showLoading();
+        await accessSharedFolder(folderId, password);
+
+        closeModal(elements.accessFolderModal);
+        folderIdInput.value = '';
+        passwordInput.value = '';
+
+        showToast('success', 'Access Granted', 'You now have access to this folder');
+        await loadFolders();
+    } catch (error) {
+        showToast('error', 'Access Denied', error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function handleDeleteFile(fileId) {
+    try {
+        showLoading();
+        await deleteFile(fileId);
+        await loadFiles(state.currentFolderId);
+        showToast('success', 'File Deleted', 'The file has been deleted');
+    } catch (error) {
+        showToast('error', 'Error', error.message);
     } finally {
         hideLoading();
     }
@@ -676,16 +693,14 @@ async function handleFileUpload(file) {
         elements.progressFill.style.width = '0%';
         elements.uploadStatus.textContent = 'Getting upload URL...';
 
-        // Get presigned URL from backend
         const uploadData = await getUploadUrl(state.currentFolderId, file.name);
 
         if (!uploadData || !uploadData.upload_url) {
             throw new Error('Failed to get upload URL');
         }
 
-        elements.uploadStatus.textContent = 'Uploading to S3...';
+        elements.uploadStatus.textContent = 'Uploading...';
 
-        // Upload directly to S3 using presigned URL
         const xhr = new XMLHttpRequest();
 
         xhr.upload.addEventListener('progress', (e) => {
@@ -698,15 +713,10 @@ async function handleFileUpload(file) {
 
         await new Promise((resolve, reject) => {
             xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    resolve();
-                } else {
-                    reject(new Error(`Upload failed with status ${xhr.status}`));
-                }
+                if (xhr.status >= 200 && xhr.status < 300) resolve();
+                else reject(new Error(`Upload failed: ${xhr.status}`));
             };
-            xhr.onerror = () => reject(new Error('Upload failed - network error'));
-
-            // PUT request to S3 presigned URL
+            xhr.onerror = () => reject(new Error('Upload failed'));
             xhr.open('PUT', uploadData.upload_url);
             xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
             xhr.send(file);
@@ -722,9 +732,8 @@ async function handleFileUpload(file) {
             loadFiles(state.currentFolderId);
         }, 1000);
 
-        showToast('success', 'Upload Complete', `"${file.name}" has been uploaded successfully`);
+        showToast('success', 'Upload Complete', `"${file.name}" uploaded`);
     } catch (error) {
-        console.error('Upload error:', error);
         showToast('error', 'Upload Failed', error.message);
         elements.uploadStatus.textContent = 'Upload failed';
         elements.dropZone.style.display = '';
@@ -740,12 +749,10 @@ async function handleDownloadFile(fileId) {
             throw new Error('Failed to get download URL');
         }
 
-        // Open download URL in new tab
         window.open(data.download_url, '_blank');
-
-        showToast('success', 'Download Started', 'Your file download has started');
+        showToast('success', 'Download Started', 'Your download has started');
     } catch (error) {
-        showToast('error', 'Error', error.message || 'Failed to download file');
+        showToast('error', 'Error', error.message);
     } finally {
         hideLoading();
     }
@@ -784,10 +791,8 @@ function initEventListeners() {
     elements.tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const tab = btn.dataset.tab;
-
             elements.tabBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-
             hideAuthMessage();
 
             if (tab === 'login') {
@@ -805,7 +810,6 @@ function initEventListeners() {
         btn.addEventListener('click', () => {
             const input = btn.previousElementSibling;
             const icon = btn.querySelector('i');
-
             if (input.type === 'password') {
                 input.type = 'text';
                 icon.classList.replace('fa-eye', 'fa-eye-slash');
@@ -824,7 +828,6 @@ function initEventListeners() {
     elements.navItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
-
             elements.navItems.forEach(i => i.classList.remove('active'));
             item.classList.add('active');
 
@@ -833,35 +836,21 @@ function initEventListeners() {
 
             switchToFoldersView();
             loadFolders();
-
-            // Close mobile menu if open
-            elements.sidebar.classList.remove('open');
-            document.querySelector('.sidebar-overlay')?.classList.remove('active');
         });
     });
 
     // Mobile Menu
-    elements.mobileMenuBtn.addEventListener('click', () => {
-        elements.sidebar.classList.add('open');
-
-        let overlay = document.querySelector('.sidebar-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.className = 'sidebar-overlay';
-            document.body.appendChild(overlay);
-            overlay.addEventListener('click', () => {
-                elements.sidebar.classList.remove('open');
-                overlay.classList.remove('active');
-            });
-        }
-        overlay.classList.add('active');
-    });
+    if (elements.mobileMenuBtn) {
+        elements.mobileMenuBtn.addEventListener('click', () => {
+            elements.sidebar.classList.add('open');
+        });
+    }
 
     // Logout
     elements.logoutBtn.addEventListener('click', logout);
 
     // Breadcrumb Back
-    document.querySelector('[data-action="back-to-folders"]').addEventListener('click', (e) => {
+    document.querySelector('[data-action="back-to-folders"]')?.addEventListener('click', (e) => {
         e.preventDefault();
         switchToFoldersView();
     });
@@ -875,18 +864,27 @@ function initEventListeners() {
     elements.shareFolderBtn.addEventListener('click', () => openModal(elements.shareFolderModal));
     elements.shareFolderForm.addEventListener('submit', handleShareFolder);
 
+    // Access Shared Folder
+    if (elements.accessSharedBtn) {
+        elements.accessSharedBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal(elements.accessFolderModal);
+        });
+    }
+    if (elements.accessFolderForm) {
+        elements.accessFolderForm.addEventListener('submit', handleAccessFolder);
+    }
+
     // Upload
     elements.uploadBtn.addEventListener('click', () => openModal(elements.uploadModal));
     elements.emptyUploadBtn.addEventListener('click', () => openModal(elements.uploadModal));
 
-    // File Input
     elements.fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) handleFileUpload(file);
-        e.target.value = ''; // Reset input
+        e.target.value = '';
     });
 
-    // Drag and Drop
     elements.dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         elements.dropZone.classList.add('dragover');
@@ -899,12 +897,10 @@ function initEventListeners() {
     elements.dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         elements.dropZone.classList.remove('dragover');
-
         const file = e.dataTransfer.files[0];
         if (file) handleFileUpload(file);
     });
 
-    // Click on drop zone to open file dialog
     elements.dropZone.addEventListener('click', (e) => {
         if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
             elements.fileInput.click();
@@ -915,6 +911,9 @@ function initEventListeners() {
     setupModalCloseHandlers(elements.createFolderModal);
     setupModalCloseHandlers(elements.shareFolderModal);
     setupModalCloseHandlers(elements.uploadModal);
+    if (elements.accessFolderModal) {
+        setupModalCloseHandlers(elements.accessFolderModal);
+    }
 
     // Escape Key
     document.addEventListener('keydown', (e) => {
@@ -927,15 +926,12 @@ function initEventListeners() {
 }
 
 // ==========================================
-// Initialize Application
+// Initialize
 // ==========================================
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('CloudVault - Initializing...');
-    console.log('API Base URL:', CONFIG.API_BASE_URL);
-
     initEventListeners();
     initAuth();
-
     console.log('CloudVault - Ready!');
 });
