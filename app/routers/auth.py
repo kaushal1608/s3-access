@@ -14,7 +14,6 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_password = get_password_hash(user.password)
-    # First user can be owner if logic permits, or manual. For now, default is USER.
     new_user = User(email=user.email, password_hash=hashed_password, role=UserRole.USER)
     db.add(new_user)
     db.commit()
@@ -31,5 +30,10 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role})
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_access_token(data={"sub": db_user.email, "role": db_user.role, "user_id": db_user.id})
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user_id": db_user.id,
+        "email": db_user.email
+    }

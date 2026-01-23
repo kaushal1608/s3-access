@@ -535,9 +535,11 @@ async function handleLogin(e) {
         hideAuthMessage();
 
         const data = await login(email, password);
+        console.log('Login response:', data);
 
         state.token = data.access_token;
-        state.user = { email, id: data.user_id };
+        state.user = { email: data.email || email, id: data.user_id };
+        console.log('User state set:', state.user);
 
         localStorage.setItem(CONFIG.TOKEN_KEY, data.access_token);
         localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(state.user));

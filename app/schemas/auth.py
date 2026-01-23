@@ -13,6 +13,8 @@ class UserLogin(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user_id: int
+    email: str
 
 class UserResponse(UserBase):
     id: int
