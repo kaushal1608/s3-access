@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Secure Serverless File Portal - Upload, manage, and share your files securely with S3-powered storage">
+    <title>CloudVault - Secure File Portal</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-bg">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Auth Container -->
+    <div id="auth-container" class="auth-container">
+        <div class="auth-card glass-card">
+            <div class="auth-header">
+                <div class="logo">
+                    <i class="fas fa-cloud-arrow-up"></i>
+                    <span>CloudVault</span>
+                </div>
+                <p class="tagline">Secure. Fast. Serverless.</p>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="tab-switcher">
+                <button class="tab-btn active" data-tab="login">Sign In</button>
+                <button class="tab-btn" data-tab="register">Sign Up</button>
+                <div class="tab-indicator"></div>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="auth-form active">
+                <div class="form-group">
+                    <label for="login-email">Email Address</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="login-email" placeholder="you@example.com" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                        <button type="button" class="toggle-password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">
+                    <span>Sign In</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="auth-form">
+                <div class="form-group">
+                    <label for="register-email">Email Address</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="register-email" placeholder="you@example.com" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="register-password" placeholder="••••••••" required minlength="6">
+                        <button type="button" class="toggle-password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="register-confirm">Confirm Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-shield-halved"></i>
+                        <input type="password" id="register-confirm" placeholder="••••••••" required minlength="6">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">
+                    <span>Create Account</span>
+                    <i class="fas fa-user-plus"></i>
+                </button>
+            </form>
+
+            <div id="auth-message" class="auth-message"></div>
+        </div>
+    </div>
+
+    <!-- Dashboard Container -->
+    <div id="dashboard-container" class="dashboard-container hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-card">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-cloud-arrow-up"></i>
+                    <span>CloudVault</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-view="folders">
+                    <i class="fas fa-folder"></i>
+                    <span>My Folders</span>
+                </a>
+                <a href="#" class="nav-item" data-view="shared">
+                    <i class="fas fa-share-nodes"></i>
+                    <span>Shared with Me</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <span id="user-email" class="user-email">user@example.com</span>
+                </div>
+                <button id="logout-btn" class="btn btn-ghost">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="content-header">
+                <div class="header-left">
+                    <button id="mobile-menu-btn" class="mobile-menu-btn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 id="page-title">My Folders</h1>
+                </div>
+                <div class="header-actions">
+                    <button id="create-folder-btn" class="btn btn-primary">
+                        <i class="fas fa-folder-plus"></i>
+                        <span>New Folder</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Breadcrumb -->
+            <nav id="breadcrumb" class="breadcrumb hidden">
+                <a href="#" class="breadcrumb-item" data-action="back-to-folders">
+                    <i class="fas fa-folder"></i>
+                    <span>Folders</span>
+                </a>
+                <i class="fas fa-chevron-right"></i>
+                <span id="current-folder-name" class="breadcrumb-current">Folder Name</span>
+            </nav>
+
+            <!-- Folders View -->
+            <section id="folders-view" class="content-view">
+                <div id="folders-grid" class="folders-grid">
+                    <!-- Folders will be rendered here -->
+                </div>
+                <div id="empty-folders" class="empty-state hidden">
+                    <div class="empty-icon">
+                        <i class="fas fa-folder-open"></i>
+                    </div>
+                    <h3>No folders yet</h3>
+                    <p>Create your first folder to start organizing your files</p>
+                    <button class="btn btn-primary" id="empty-create-folder">
+                        <i class="fas fa-folder-plus"></i>
+                        <span>Create Folder</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Files View -->
+            <section id="files-view" class="content-view hidden">
+                <div class="files-header">
+                    <div class="files-actions">
+                        <button id="upload-btn" class="btn btn-primary">
+                            <i class="fas fa-cloud-arrow-up"></i>
+                            <span>Upload Files</span>
+                        </button>
+                        <button id="share-folder-btn" class="btn btn-secondary">
+                            <i class="fas fa-share-nodes"></i>
+                            <span>Share Folder</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="files-grid" class="files-grid">
+                    <!-- Files will be rendered here -->
+                </div>
+                <div id="empty-files" class="empty-state hidden">
+                    <div class="empty-icon">
+                        <i class="fas fa-file-circle-plus"></i>
+                    </div>
+                    <h3>No files yet</h3>
+                    <p>Upload your first file to this folder</p>
+                    <button class="btn btn-primary" id="empty-upload-btn">
+                        <i class="fas fa-cloud-arrow-up"></i>
+                        <span>Upload File</span>
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Create Folder Modal -->
+    <div id="create-folder-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-folder-plus"></i> Create New Folder</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="create-folder-form" class="modal-body">
+                <div class="form-group">
+                    <label for="folder-name">Folder Name</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-folder"></i>
+                        <input type="text" id="folder-name" placeholder="Enter folder name" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost modal-cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        <span>Create</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Share Folder Modal -->
+    <div id="share-folder-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-share-nodes"></i> Share Folder</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="share-folder-form" class="modal-body">
+                <div class="form-group">
+                    <label for="share-email">User Email</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="share-email" placeholder="user@example.com" required>
+                    </div>
+                    <p class="form-hint">The user will have read-only access to this folder</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-ghost modal-cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-share"></i>
+                        <span>Share</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-cloud-arrow-up"></i> Upload Files</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="drop-zone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <i class="fas fa-cloud-arrow-up"></i>
+                        <h3>Drag & Drop files here</h3>
+                        <p>or</p>
+                        <label for="file-input" class="btn btn-secondary">
+                            <i class="fas fa-folder-open"></i>
+                            <span>Browse Files</span>
+                        </label>
+                        <input type="file" id="file-input" multiple hidden>
+                    </div>
+                </div>
+                <div id="upload-progress" class="upload-progress hidden">
+                    <div class="upload-item">
+                        <div class="upload-info">
+                            <i class="fas fa-file"></i>
+                            <span id="upload-filename">filename.txt</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill"></div>
+                        </div>
+                        <span id="upload-status" class="upload-status">Uploading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loader">
+            <div class="loader-spinner"></div>
+            <span>Loading...</span>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
