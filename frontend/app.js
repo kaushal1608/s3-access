@@ -10,9 +10,9 @@
 
 const CONFIG = {
     // API Base URL - Change this to your deployed API endpoint
-    // For local development: 'http://localhost:8000'
+    // For local development: 'http://127.0.0.1:8000'
     // For AWS Lambda: 'https://your-api-gateway-url.amazonaws.com/prod'
-    API_BASE_URL: 'http://localhost:8000',
+    API_BASE_URL: 'http://127.0.0.1:8000',
     TOKEN_KEY: 'cloudvault_token',
     USER_KEY: 'cloudvault_user'
 };
