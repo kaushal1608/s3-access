@@ -120,52 +120,82 @@ s3-access/
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Installation & Deployment
 
-### Prerequisites
+### 1️⃣ Local Development (Windows)
 
-- Python 3.9+ (Python 3.10+ recommended)
-- pip (Python package manager)
-- (Optional) AWS CLI configured for S3 features
+The easiest way to run the project locally on Windows is using the included Python script.
 
-### Local Development - Easy Setup
+**Prerequisites:**
+- Python 3.10+ installed
+- Git installed
 
-**Option 1: One-Command Setup (Recommended)**
-
-```bash
-# Clone the repository
+**Steps:**
+```powershell
+# 1. Clone the repository
 git clone https://github.com/kaushal1608/s3-access.git
 cd s3-access
 
-# Linux/Mac - Run the setup script
-chmod +x run_local.sh
-./run_local.sh
-
-# OR use Python (works on all platforms)
+# 2. Run the automated setup script
 python run_local.py
 ```
+This script will automatically:
+- Create a virtual environment (`venv`)
+- Install all dependencies from `requirements.txt`
+- Set up a local SQLite database
+- Start the server at `http://localhost:8000`
 
-**Option 2: Manual Setup**
+---
 
+### 2️⃣ Linux VM / Server Deployment
+
+For deploying on a Linux VM (e.g., Ubuntu, EC2), use the shell script for a quick setup.
+
+**Prerequisites:**
+- Python 3.10+ (`sudo apt install python3 python3-venv`)
+- Git
+
+**Steps:**
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/kaushal1608/s3-access.git
 cd s3-access
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or: .\venv\Scripts\Activate.ps1  # Windows PowerShell
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Create .env file from template
-cp .env.example .env
-
-# Run the server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 2. Make the script executable and run it
+chmod +x run_local.sh
+./run_local.sh
 ```
+The application will be accessible at `http://YOUR_SERVER_IP:8000`. 
+*Note: Make sure port 8000 is open in your firewall/security group.*
+
+---
+
+### 3️⃣ AWS Lambda Deployment (Serverless)
+
+This is the production-grade deployment using AWS SAM.
+
+**Prerequisites:**
+- AWS CLI configured (`aws configure`)
+- AWS SAM CLI installed
+- Docker (optional, for local testing)
+
+**Steps:**
+```bash
+# 1. Build the application
+sam build
+
+# 2. Deploy to AWS (guided process)
+sam deploy --guided
+```
+
+**During the guided deploy:**
+- **Stack Name**: `s3-access-portal`
+- **AWS Region**: `us-east-1` (or your preferred region)
+- **Confirm changes before deploy**: `Y`
+- **Allow SAM CLI IAM role creation**: `Y`
+- **Save arguments to configuration file**: `Y`
+
+For a detailed deep-dive into the AWS architecture and manual deployment steps, please refer to [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ### Access Points
 
@@ -232,38 +262,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ---
 
-## ☁️ AWS Deployment
 
-### Option 1: SAM CLI (Recommended)
-
-```bash
-# Build the application
-sam build
-
-# Deploy with guided prompts
-sam deploy --guided
-```
-
-### Option 2: Manual Lambda Deployment
-
-```bash
-# Create deployment package
-pip install -r requirements.txt -t ./package
-cd package && zip -r ../deployment.zip . && cd ..
-zip -g deployment.zip -r app
-
-# Deploy via AWS CLI
-aws lambda create-function \
-    --function-name SecureFilePortal \
-    --runtime python3.10 \
-    --handler app.main.handler \
-    --zip-file fileb://deployment.zip \
-    --role arn:aws:iam::ACCOUNT_ID:role/LambdaS3AccessRole
-```
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete instructions.
-
----
 
 ## 🔒 Security Configuration
 
