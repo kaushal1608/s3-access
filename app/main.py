@@ -1,24 +1,29 @@
-import os
 from pathlib import Path
-from dotenv import load_dotenv
-
-# Load environment variables from .env file (for local development)
-load_dotenv()
-
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
 from app.routers import auth, folders, files
 from app.database import engine, Base
+from app.config import get_settings
+from app.logger import logger
 
 # Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
+settings = get_settings()
+
 app = FastAPI(title="Secure Serverless File Portal")
 
+# Logging Middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Incoming request: {request.method} {request.url.path}")
+    response = await call_next(request)
+    return response
+
 # CORS Configuration - Allow frontend to communicate with backend
-cors_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+cors_origins = settings.CORS_ORIGINS.split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins if cors_origins != ["*"] else ["*"],

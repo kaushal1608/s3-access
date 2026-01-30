@@ -9,3 +9,8 @@ passlib[bcrypt]
 boto3
 python-multipart
 python-dotenv
+pydantic-settings
+aws-lambda-powertools
+pytest
+requests
+httpx
