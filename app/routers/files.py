@@ -92,7 +92,13 @@ def delete_file(file_id: int, db: Session = Depends(get_db), current_user: User 
     return {"message": "File deleted successfully"}
 
 @router.get("/folders/{folder_id}/files", response_model=List[FileResponse])
-def list_folder_files(folder_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_folder_files(
+    folder_id: int, 
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
     folder = db.query(Folder).filter(Folder.id == folder_id).first()
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -103,5 +109,5 @@ def list_folder_files(folder_id: int, db: Session = Depends(get_db), current_use
         if not access:
             raise HTTPException(status_code=403, detail="Access denied")
 
-    files = db.query(File).filter(File.folder_id == folder_id).all()
+    files = db.query(File).filter(File.folder_id == folder_id).offset(skip).limit(limit).all()
     return files

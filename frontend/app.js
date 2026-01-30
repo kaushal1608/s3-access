@@ -9,7 +9,8 @@
 // ==========================================
 
 const CONFIG = {
-    API_BASE_URL: 'http://127.0.0.1:8000',
+    // Empty string means use the same origin as the frontend
+    API_BASE_URL: '',
     TOKEN_KEY: 'cloudvault_token',
     USER_KEY: 'cloudvault_user'
 };

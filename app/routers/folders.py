@@ -24,28 +24,47 @@ def create_folder(folder: FolderCreate, db: Session = Depends(get_db), current_u
     return new_folder
 
 @router.get("/", response_model=List[FolderListResponse])
-def list_folders(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_folders(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db), 
+    current_user: User = Depends(get_current_user)
+):
     # Return folders owned by user OR shared with user
+    # Note: Complex pagination with unions is tricky, so we'll filter simply first.
+    # For now, simplistic approach: Pagination applies to owned folders first?
+    # Actually, proper pagination for mixed sources is hard without a UNION query.
+    # Let's simplify and just paginate the owned folders for now, or fetch all and slice (not optimal for huge datasets but better than nothing for now).
+    # Since we need to merge owned + shared, let's keep it simple: API limit applies to total.
+    
+    # Improved Query: Join or Union if possible. For simplicity in this demo, we'll fetch owned first.
+    
     owned_folders = db.query(Folder).filter(Folder.owner_id == current_user.id).all()
     
     # Get shared folders (where user has access)
     shared_access = db.query(FolderAccess).filter(FolderAccess.user_id == current_user.id).all()
     shared_folders = [access.folder for access in shared_access if access.folder]
     
+    all_folders = []
+    
     # Mark shared folders
-    result = []
     for folder in owned_folders:
         folder_dict = FolderListResponse.model_validate(folder)
         folder_dict.is_shared = False
-        result.append(folder_dict)
+        all_folders.append(folder_dict)
     
     for folder in shared_folders:
         if folder and folder not in owned_folders:
             folder_dict = FolderListResponse.model_validate(folder)
             folder_dict.is_shared = True
-            result.append(folder_dict)
-    
-    return result
+            all_folders.append(folder_dict)
+            
+    # Apply pagination in memory (since we are merging two lists)
+    # This is not "true" db pagination but API surface is now ready for it.
+    # In a real production app, we would write a UNION query.
+    start = skip
+    end = skip + limit
+    return all_folders[start:end]
 
 @router.delete("/{folder_id}")
 def delete_folder(folder_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
