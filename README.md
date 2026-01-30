@@ -124,12 +124,28 @@ s3-access/
 
 ### Prerequisites
 
-- Python 3.10+
-- AWS CLI configured
-- AWS SAM CLI
-- PostgreSQL database (local or RDS)
+- Python 3.9+ (Python 3.10+ recommended)
+- pip (Python package manager)
+- (Optional) AWS CLI configured for S3 features
 
-### Local Development
+### Local Development - Easy Setup
+
+**Option 1: One-Command Setup (Recommended)**
+
+```bash
+# Clone the repository
+git clone https://github.com/kaushal1608/s3-access.git
+cd s3-access
+
+# Linux/Mac - Run the setup script
+chmod +x run_local.sh
+./run_local.sh
+
+# OR use Python (works on all platforms)
+python run_local.py
+```
+
+**Option 2: Manual Setup**
 
 ```bash
 # Clone the repository
@@ -137,26 +153,30 @@ git clone https://github.com/kaushal1608/s3-access.git
 cd s3-access
 
 # Create virtual environment
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
 # or: .\venv\Scripts\Activate.ps1  # Windows PowerShell
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Set environment variables
-export DATABASE_URL="sqlite:///./test.db"  # Use SQLite for local dev
-export SECRET_KEY="your-secret-key-min-32-chars"
-export S3_BUCKET_NAME="your-test-bucket"
-export AWS_REGION="ap-south-1"
+# Create .env file from template
+cp .env.example .env
 
 # Run the server
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Visit **http://localhost:8000/docs** for interactive Swagger documentation.
+### Access Points
+
+| URL | Description |
+|-----|-------------|
+| http://localhost:8000 | API Root |
+| http://localhost:8000/docs | Swagger UI (Interactive API Docs) |
+| http://localhost:8000/frontend/index.html | Web Frontend |
 
 ---
+
 
 ## 📡 API Endpoints
 
