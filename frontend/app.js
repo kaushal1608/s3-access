@@ -79,11 +79,15 @@ const elements = {
     uploadModal: document.getElementById('upload-modal'),
     profileModal: document.getElementById('profile-modal'),
     userProfileBtn: document.getElementById('user-profile-btn'),
+    previewModal: document.getElementById('preview-modal'),
+    settingsModal: document.getElementById('settings-modal'),
+    settingsBtn: document.getElementById('settings-btn'),
 
     // Forms
     createFolderForm: document.getElementById('create-folder-form'),
     shareFolderForm: document.getElementById('share-folder-form'),
     accessFolderForm: document.getElementById('access-folder-form'),
+    changePasswordForm: document.getElementById('change-password-form'),
 
     // Upload
     dropZone: document.getElementById('drop-zone'),
@@ -188,6 +192,16 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function isFilePreviewable(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    const previewableExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf'];
+    return previewableExtensions.includes(ext);
+}
+
+function getFileExtension(filename) {
+    return filename.split('.').pop().toLowerCase();
 }
 
 // ==========================================
@@ -453,6 +467,7 @@ function renderFiles() {
 
     elements.filesGrid.innerHTML = files.map(file => {
         const { icon, class: iconClass } = getFileIcon(file.filename);
+        const isPreviewable = isFilePreviewable(file.filename);
         return `
             <div class="file-card" data-file-id="${file.id}">
                 <div class="file-icon ${iconClass}">
@@ -461,6 +476,11 @@ function renderFiles() {
                 <div class="file-name" title="${escapeHtml(file.filename)}">${escapeHtml(file.filename)}</div>
                 <div class="file-size">${formatFileSize(file.size || 0)}</div>
                 <div class="file-actions">
+                    ${isPreviewable ? `
+                        <button class="file-action-btn preview-file" data-file-id="${file.id}" data-filename="${escapeHtml(file.filename)}" title="Preview">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    ` : ''}
                     <button class="file-action-btn download-file" data-file-id="${file.id}" title="Download">
                         <i class="fas fa-download"></i>
                     </button>
@@ -473,6 +493,15 @@ function renderFiles() {
             </div>
         `;
     }).join('');
+
+    // Add preview handlers
+    document.querySelectorAll('.preview-file').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const fileId = parseInt(btn.dataset.fileId);
+            const filename = btn.dataset.filename;
+            await handlePreviewFile(fileId, filename);
+        });
+    });
 
     // Add download handlers
     document.querySelectorAll('.download-file').forEach(btn => {
@@ -763,6 +792,41 @@ async function handleDownloadFile(fileId) {
     }
 }
 
+async function handlePreviewFile(fileId, filename) {
+    try {
+        showLoading();
+        const data = await getDownloadUrl(fileId);
+
+        if (!data || !data.download_url) {
+            throw new Error('Failed to get file URL');
+        }
+
+        const previewContent = document.getElementById('preview-content');
+        const previewFilename = document.getElementById('preview-filename');
+        const previewDownloadBtn = document.getElementById('preview-download-btn');
+
+        previewFilename.textContent = filename;
+        previewDownloadBtn.href = data.download_url;
+        previewDownloadBtn.download = filename;
+
+        const ext = getFileExtension(filename);
+
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+            previewContent.innerHTML = `<img src="${data.download_url}" alt="${escapeHtml(filename)}" style="max-width: 100%; max-height: 65vh; object-fit: contain; border-radius: 8px;">`;
+        } else if (ext === 'pdf') {
+            previewContent.innerHTML = `<iframe src="${data.download_url}" style="width: 80vw; height: 70vh; border: none; border-radius: 8px;"></iframe>`;
+        } else {
+            previewContent.innerHTML = `<p>Preview not available for this file type.</p>`;
+        }
+
+        openModal(elements.previewModal);
+    } catch (error) {
+        showToast('error', 'Error', error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
 // ==========================================
 // Modal Functions
 // ==========================================
@@ -875,6 +939,42 @@ function initEventListeners() {
         });
     }
 
+    // Settings
+    if (elements.settingsBtn) {
+        elements.settingsBtn.addEventListener('click', () => {
+            openModal(elements.settingsModal);
+        });
+    }
+
+    // Change Password Form
+    if (elements.changePasswordForm) {
+        elements.changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = document.getElementById('current-password').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            if (newPassword !== confirmPassword) {
+                showToast('Passwords do not match', 'error');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                showToast('Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            try {
+                // Note: Backend endpoint for password change would need to be implemented
+                showToast('Password change feature requires backend API', 'warning');
+                closeModal(elements.settingsModal);
+                elements.changePasswordForm.reset();
+            } catch (error) {
+                showToast('Failed to change password', 'error');
+            }
+        });
+    }
+
     // Breadcrumb Back
     document.querySelector('[data-action="back-to-folders"]')?.addEventListener('click', (e) => {
         e.preventDefault();
@@ -939,6 +1039,15 @@ function initEventListeners() {
     setupModalCloseHandlers(elements.uploadModal);
     if (elements.accessFolderModal) {
         setupModalCloseHandlers(elements.accessFolderModal);
+    }
+    if (elements.previewModal) {
+        setupModalCloseHandlers(elements.previewModal);
+    }
+    if (elements.settingsModal) {
+        setupModalCloseHandlers(elements.settingsModal);
+    }
+    if (elements.profileModal) {
+        setupModalCloseHandlers(elements.profileModal);
     }
 
     // Escape Key

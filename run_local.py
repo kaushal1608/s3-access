@@ -14,6 +14,13 @@ import subprocess
 import shutil
 from pathlib import Path
 
+# Fix for Windows Unicode output
+if sys.stdout.encoding.lower() != 'utf-8':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass # Python < 3.7
+
 # Colors for terminal output (works on most terminals)
 class Colors:
     RED = '\033[0;31m'

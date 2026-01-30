@@ -1,26 +1,26 @@
 /* ==========================================================================
    CloudVault Design System
-   Theme: Glassmorphism Dark
-   Description: Premium, secure file portal with glass effects and deep depth.
+   Theme: Glassmorphism Light
+   Description: Premium, secure file portal with glass effects and soft aesthetics.
    ========================================================================== */
 
 :root {
-    /* Color Palette - Dark Mode Core */
-    --bg-app: #0f172a;
-    /* Slate 950 - Main background */
-    --bg-glass: rgba(30, 41, 59, 0.7);
-    /* Slate 800 - Glass cards */
-    --bg-glass-hover: rgba(51, 65, 85, 0.8);
-    /* Slate 700 - Hover state */
-    --bg-input: rgba(15, 23, 42, 0.6);
-    /* Darker input bg */
+    /* Color Palette - Light Mode Core */
+    --bg-app: #f1f5f9;
+    /* Slate 100 - Main background */
+    --bg-glass: rgba(255, 255, 255, 0.85);
+    /* White glass cards */
+    --bg-glass-hover: rgba(255, 255, 255, 0.95);
+    /* Hover state */
+    --bg-input: rgba(241, 245, 249, 0.9);
+    /* Light input bg */
 
     /* Brand Colors */
     --primary: #3b82f6;
     /* Blue 500 - Primary Action */
     --primary-hover: #2563eb;
     /* Blue 600 - Primary Hover */
-    --primary-glow: rgba(59, 130, 246, 0.5);
+    --primary-glow: rgba(59, 130, 246, 0.3);
 
     --secondary: #64748b;
     /* Slate 500 - Secondary Text/Icons */
@@ -36,17 +36,17 @@
     /* Amber 500 - Warning */
 
     /* Typography */
-    --text-main: #f8fafc;
-    /* Slate 50 - Headings */
-    --text-muted: #94a3b8;
-    /* Slate 400 - Body text */
+    --text-main: #0f172a;
+    /* Slate 900 - Headings */
+    --text-muted: #475569;
+    /* Slate 600 - Body text */
     --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
     --font-body: 'Inter', system-ui, -apple-system, sans-serif;
 
     /* Borders & Effects */
-    --border-glass: 1px solid rgba(255, 255, 255, 0.1);
+    --border-glass: 1px solid rgba(0, 0, 0, 0.08);
     --border-focus: 2px solid rgba(59, 130, 246, 0.5);
-    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
     --radius-lg: 16px;
     --radius-md: 12px;
     --radius-sm: 8px;
@@ -91,8 +91,8 @@ body {
 .gradient-orb {
     position: absolute;
     border-radius: 50%;
-    filter: blur(80px);
-    opacity: 0.6;
+    filter: blur(100px);
+    opacity: 0.25;
     animation: float 20s infinite ease-in-out;
 }
 
@@ -120,7 +120,7 @@ body {
     background: var(--success);
     top: 40%;
     left: 60%;
-    opacity: 0.3;
+    opacity: 0.15;
     animation-delay: -10s;
 }
 
@@ -762,13 +762,15 @@ body {
     position: relative;
     width: 100%;
     max-width: 500px;
-    background: #1e293b;
+    background: rgba(255, 255, 255, 0.98);
     /* Solid bg backup for modals */
-    background: linear-gradient(135deg, #1e293b, #0f172a);
+    backdrop-filter: blur(20px);
     padding: 2rem;
     transform: scale(0.95);
     transition: transform 0.2s;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
 }
 
 .modal:not(.hidden) .modal-content {
@@ -962,8 +964,8 @@ body {
         position: fixed;
         left: -100%;
         height: 100vh;
-        background: #0f172a;
-        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.15);
     }
 
     .sidebar.active {
@@ -982,4 +984,16 @@ body {
     .mobile-menu-btn {
         display: block;
     }
+}
+
+/* Preview Button */
+.file-action-btn.preview-file:hover {
+    background: var(--accent);
+    color: white;
+}
+
+/* Settings Button Styling */
+#settings-btn {
+    width: 100%;
+    justify-content: flex-start;
 }

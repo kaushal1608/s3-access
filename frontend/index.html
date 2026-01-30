@@ -134,6 +134,10 @@
                     </div>
                     <span id="user-email" class="user-email">user@example.com</span>
                 </div>
+                <button id="settings-btn" class="btn btn-ghost">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </button>
                 <button id="logout-btn" class="btn btn-ghost">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
@@ -391,6 +395,77 @@
                         <span id="upload-status" class="upload-status">Uploading...</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Preview Modal -->
+    <div id="preview-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content glass-card" style="max-width: 90vw; max-height: 90vh;">
+            <div class="modal-header">
+                <h2><i class="fas fa-eye"></i> <span id="preview-filename">File Preview</span></h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body"
+                style="display: flex; justify-content: center; align-items: center; min-height: 300px;">
+                <div id="preview-content" style="max-width: 100%; max-height: 70vh; overflow: auto;">
+                    <!-- Preview content will be inserted here -->
+                </div>
+            </div>
+            <div class="modal-actions">
+                <a id="preview-download-btn" href="#" download class="btn btn-primary">
+                    <i class="fas fa-download"></i> Download
+                </a>
+                <button type="button" class="btn btn-secondary modal-close-btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-cog"></i> Settings</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <h3 style="margin-bottom: 1.5rem; color: var(--text-main);">Change Password</h3>
+                <form id="change-password-form">
+                    <div class="form-group">
+                        <label for="current-password">Current Password</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="current-password" placeholder="Enter current password" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-password">New Password</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-key"></i>
+                            <input type="password" id="new-password" placeholder="Enter new password" required
+                                minlength="6">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-password">Confirm New Password</label>
+                        <div class="input-wrapper">
+                            <i class="fas fa-check-double"></i>
+                            <input type="password" id="confirm-password" placeholder="Confirm new password" required>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary modal-close-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Update Password
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
