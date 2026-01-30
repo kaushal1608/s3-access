@@ -77,6 +77,8 @@ const elements = {
     shareFolderModal: document.getElementById('share-folder-modal'),
     accessFolderModal: document.getElementById('access-folder-modal'),
     uploadModal: document.getElementById('upload-modal'),
+    profileModal: document.getElementById('profile-modal'),
+    userProfileBtn: document.getElementById('user-profile-btn'),
 
     // Forms
     createFolderForm: document.getElementById('create-folder-form'),
@@ -861,6 +863,17 @@ function initEventListeners() {
 
     // Logout
     elements.logoutBtn.addEventListener('click', logout);
+
+    // Profile
+    if (elements.userProfileBtn) {
+        elements.userProfileBtn.addEventListener('click', () => {
+            if (state.user) {
+                document.getElementById('profile-email-display').value = state.user.email;
+                document.getElementById('profile-id-display').value = state.user.id || 'N/A';
+            }
+            openModal(elements.profileModal);
+        });
+    }
 
     // Breadcrumb Back
     document.querySelector('[data-action="back-to-folders"]')?.addEventListener('click', (e) => {

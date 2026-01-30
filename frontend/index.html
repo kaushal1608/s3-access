@@ -128,7 +128,7 @@
             </nav>
 
             <div class="sidebar-footer">
-                <div class="user-info">
+                <div class="user-info" id="user-profile-btn" style="cursor: pointer;">
                     <div class="avatar">
                         <i class="fas fa-user"></i>
                     </div>
@@ -313,6 +313,46 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profile-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-id-card"></i> User Profile</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: center; margin-bottom: 2rem;">
+                    <div
+                        style="width: 80px; height: 80px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: white; box-shadow: 0 0 20px var(--primary-glow);">
+                        <i class="fas fa-user"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-envelope"></i>
+                        <input type="text" id="profile-email-display" readonly value="user@example.com"
+                            style="background: rgba(0,0,0,0.2); cursor: default;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>User ID</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-fingerprint"></i>
+                        <input type="text" id="profile-id-display" readonly value="1"
+                            style="background: rgba(0,0,0,0.2); cursor: default;">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-primary modal-close-btn" style="width: 100%;">Close</button>
+                </div>
+            </div>
         </div>
     </div>
 
