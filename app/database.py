@@ -1,3 +1,6 @@
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 from app.config import get_settings
 
 # Expecting DATABASE_URL to be set in environment variables
