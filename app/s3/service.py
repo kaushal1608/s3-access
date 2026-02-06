@@ -18,6 +18,7 @@ from app.logger import logger
 
 def generate_presigned_upload_url(s3_key: str, content_type: str = "application/octet-stream", expiration=300):
     try:
+        logger.info(f"Generating presigned upload URL for bucket: {S3_BUCKET}, key: {s3_key}")
         response = s3_client.generate_presigned_url(
             'put_object',
             Params={
@@ -27,10 +28,11 @@ def generate_presigned_upload_url(s3_key: str, content_type: str = "application/
             },
             ExpiresIn=expiration
         )
+        logger.info(f"Successfully generated presigned URL")
         return response
     except ClientError as e:
-        logger.error(f"Error generating upload URL: {e}")
-        raise HTTPException(status_code=500, detail="Could not generate upload URL")
+        logger.error(f"Error generating upload URL for {s3_key}: {e}")
+        raise HTTPException(status_code=500, detail=f"Could not generate upload URL: {str(e)}")
 
 def generate_presigned_download_url(s3_key: str, expiration=300):
     try:

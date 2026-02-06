@@ -41,7 +41,8 @@ def get_upload_url(folder_id: int, file_info: FileBase, db: Session = Depends(ge
     db.commit()
     db.refresh(new_file)
     
-    return {"upload_url": presigned_url['url'], "file_id": new_file.id, "s3_key": s3_key}
+    # presigned_url is a string (the URL), not a dictionary
+    return {"upload_url": presigned_url, "file_id": new_file.id, "s3_key": s3_key}
 
 @router.get("/download/{file_id}", response_model=FileDownloadURL)
 def get_download_url(file_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
