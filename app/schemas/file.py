@@ -4,6 +4,7 @@ from typing import Optional
 
 class FileBase(BaseModel):
     filename: str
+    content_type: Optional[str] = None
 
 class FileResponse(FileBase):
     id: int

@@ -49,5 +49,47 @@ def root():
         "frontend": "/frontend/index.html"
     }
 
+@app.get("/debug/s3")
+def debug_s3():
+    """Debug endpoint to check S3 connectivity and AWS credentials"""
+    import boto3
+    from botocore.exceptions import ClientError, NoCredentialsError
+    
+    result = {
+        "bucket_name": settings.S3_BUCKET_NAME,
+        "region": settings.AWS_REGION,
+        "credentials_configured": False,
+        "bucket_accessible": False,
+        "error": None
+    }
+    
+    try:
+        # Check credentials
+        sts = boto3.client('sts', region_name=settings.AWS_REGION)
+        identity = sts.get_caller_identity()
+        result["credentials_configured"] = True
+        result["aws_account"] = identity["Account"]
+        result["aws_arn"] = identity["Arn"]
+        
+        # Check bucket access
+        s3 = boto3.client('s3', region_name=settings.AWS_REGION)
+        s3.head_bucket(Bucket=settings.S3_BUCKET_NAME)
+        result["bucket_accessible"] = True
+        
+        # Try to list objects (to verify read permissions)
+        response = s3.list_objects_v2(Bucket=settings.S3_BUCKET_NAME, MaxKeys=1)
+        result["can_list_objects"] = True
+        
+    except NoCredentialsError:
+        result["error"] = "AWS credentials not found. Configure AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables, or attach an IAM role to the EC2 instance."
+    except ClientError as e:
+        error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+        error_msg = e.response.get('Error', {}).get('Message', str(e))
+        result["error"] = f"{error_code}: {error_msg}"
+    except Exception as e:
+        result["error"] = f"{type(e).__name__}: {str(e)}"
+    
+    return result
+
 handler = Mangum(app)
 

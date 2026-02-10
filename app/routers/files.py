@@ -26,7 +26,10 @@ def get_upload_url(folder_id: int, file_info: FileBase, db: Session = Depends(ge
     # Generate S3 Key
     s3_key = f"{folder.s3_prefix}{uuid.uuid4()}-{file_info.filename}"
     
-    presigned_url = generate_presigned_upload_url(s3_key)
+    # Use the content_type from the frontend so the presigned URL signature
+    # matches the Content-Type header the browser will send during upload.
+    upload_content_type = file_info.content_type or "application/octet-stream"
+    presigned_url = generate_presigned_upload_url(s3_key, content_type=upload_content_type)
     
     # Create file entry
     new_file = File(
@@ -35,7 +38,7 @@ def get_upload_url(folder_id: int, file_info: FileBase, db: Session = Depends(ge
         size=0,  # Placeholder
         folder_id=folder.id,
         uploaded_by_id=current_user.id,
-        content_type="application/octet-stream"
+        content_type=upload_content_type
     )
     db.add(new_file)
     db.commit()

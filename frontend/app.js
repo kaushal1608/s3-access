@@ -292,10 +292,10 @@ async function getFiles(folderId) {
     return await apiRequest(`/folders/${folderId}/files`);
 }
 
-async function getUploadUrl(folderId, filename) {
+async function getUploadUrl(folderId, filename, contentType) {
     return await apiRequest(`/upload/${folderId}`, {
         method: 'POST',
-        body: JSON.stringify({ filename })
+        body: JSON.stringify({ filename, content_type: contentType || 'application/octet-stream' })
     });
 }
 
@@ -727,7 +727,10 @@ async function handleFileUpload(file) {
         elements.progressFill.style.width = '0%';
         elements.uploadStatus.textContent = 'Getting upload URL...';
 
-        const uploadData = await getUploadUrl(state.currentFolderId, file.name);
+        // Determine the content type from the file — this MUST be sent to the backend
+        // so the presigned URL is signed with the exact same Content-Type we'll use during upload.
+        const contentType = file.type || 'application/octet-stream';
+        const uploadData = await getUploadUrl(state.currentFolderId, file.name, contentType);
 
         if (!uploadData || !uploadData.upload_url) {
             throw new Error('Failed to get upload URL');
@@ -752,7 +755,7 @@ async function handleFileUpload(file) {
             };
             xhr.onerror = () => reject(new Error('Upload failed'));
             xhr.open('PUT', uploadData.upload_url);
-            xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+            xhr.setRequestHeader('Content-Type', contentType);
             xhr.send(file);
         });
 
