@@ -750,10 +750,24 @@ async function handleFileUpload(file) {
 
         await new Promise((resolve, reject) => {
             xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) resolve();
-                else reject(new Error(`Upload failed: ${xhr.status}`));
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve();
+                } else {
+                    // Log full S3 error response for debugging
+                    console.error('S3 Upload Error:', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        uploadUrl: uploadData.upload_url.substring(0, 100) + '...',
+                        contentType: contentType
+                    });
+                    reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+                }
             };
-            xhr.onerror = () => reject(new Error('Upload failed'));
+            xhr.onerror = () => {
+                console.error('S3 Upload Network Error - this may be a CORS issue');
+                reject(new Error('Upload failed - network error (check CORS)'));
+            };
             xhr.open('PUT', uploadData.upload_url);
             xhr.setRequestHeader('Content-Type', contentType);
             xhr.send(file);

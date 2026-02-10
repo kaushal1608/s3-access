@@ -38,17 +38,23 @@ def generate_presigned_upload_url(s3_key: str, content_type: str = "application/
         raise HTTPException(status_code=500, detail="S3 not configured: AWS credentials missing. Check server logs.")
     
     try:
-        logger.info(f"Generating presigned upload URL for bucket: {S3_BUCKET}, key: {s3_key}")
+        logger.info(f"Generating presigned upload URL for bucket: {S3_BUCKET}, key: {s3_key}, content_type: {content_type}")
+        
+        # IMPORTANT: Do NOT include ContentType in Params.
+        # When ContentType is in Params, S3 adds 'content-type' to X-Amz-SignedHeaders
+        # and enforces that the exact same Content-Type is sent during upload.
+        # If there's any mismatch (even subtle), S3 returns 403 Forbidden.
+        # By omitting it, S3 won't validate Content-Type at all.
+        # The browser still sends Content-Type during the PUT and S3 uses it for object metadata.
         response = s3_client.generate_presigned_url(
             'put_object',
             Params={
                 'Bucket': S3_BUCKET,
                 'Key': s3_key,
-                'ContentType': content_type
             },
             ExpiresIn=expiration
         )
-        logger.info(f"Successfully generated presigned URL")
+        logger.info(f"Successfully generated presigned URL (first 100 chars): {response[:100]}...")
         return response
     except NoCredentialsError:
         logger.error("AWS credentials not found when generating presigned URL")
