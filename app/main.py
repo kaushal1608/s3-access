@@ -11,8 +11,31 @@ from app.logger import logger
 # Import all models so Base.metadata.create_all picks them up
 import app.models  # noqa: F401 - ensures User, Folder, File, LdapConfig tables are created
 
-# Create tables if they don't exist
-Base.metadata.create_all(bind=engine)
+def run_migrations():
+    """
+    Run database migrations for existing databases.
+    SQLAlchemy's create_all only creates NEW tables — it won't add columns
+    to existing tables. This function handles schema upgrades.
+    """
+    from sqlalchemy import text, inspect
+    
+    with engine.connect() as conn:
+        inspector = inspect(engine)
+        
+        # Migration 1: Add 'auth_type' column to users table
+        if 'users' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('users')]
+            if 'auth_type' not in columns:
+                logger.info("Migration: Adding 'auth_type' column to users table")
+                conn.execute(text("ALTER TABLE users ADD COLUMN auth_type VARCHAR DEFAULT 'local'"))
+                conn.commit()
+                logger.info("Migration: 'auth_type' column added successfully")
+        
+        # Migration 2: create_all for any brand new tables (e.g. ldap_config)
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database migrations complete")
+
+run_migrations()
 
 settings = get_settings()
 
