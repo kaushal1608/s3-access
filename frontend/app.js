@@ -588,18 +588,36 @@ async function handleLogin(e) {
 
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
-    const ldapUsername = document.getElementById('ldap-username')?.value || null;
+    const ldapIdentifier = document.getElementById('ldap-username')?.value || null;
 
     try {
         showLoading();
         hideAuthMessage();
 
-        const loginPayload = {
-            email,
-            password,
-            auth_method: state.authMethod,
-            ldap_username: state.authMethod === 'ldap' ? ldapUsername : null
-        };
+        let loginPayload;
+        if (state.authMethod === 'ldap') {
+            // LDAP login: use identifier (EIN or username), email is optional
+            if (!ldapIdentifier) {
+                showAuthMessage('error', 'Please enter your Employee ID or AD username');
+                return;
+            }
+            loginPayload = {
+                password,
+                auth_method: 'ldap',
+                identifier: ldapIdentifier
+            };
+        } else {
+            // Local login: use email
+            if (!email) {
+                showAuthMessage('error', 'Please enter your email address');
+                return;
+            }
+            loginPayload = {
+                email,
+                password,
+                auth_method: 'local'
+            };
+        }
 
         const data = await apiRequest('/auth/login', {
             method: 'POST',
@@ -1055,10 +1073,18 @@ function initEventListeners() {
             state.authMethod = btn.dataset.method;
 
             const ldapUsernameGroup = document.getElementById('ldap-username-group');
+            const loginEmailGroup = document.getElementById('login-email-group');
             if (state.authMethod === 'ldap') {
+                // Show EIN field, hide email field
                 ldapUsernameGroup.classList.remove('hidden');
+                if (loginEmailGroup) loginEmailGroup.classList.add('hidden');
+                // Remove required from email since LDAP doesn't need it
+                document.getElementById('login-email').removeAttribute('required');
             } else {
+                // Show email field, hide EIN field
                 ldapUsernameGroup.classList.add('hidden');
+                if (loginEmailGroup) loginEmailGroup.classList.remove('hidden');
+                document.getElementById('login-email').setAttribute('required', '');
             }
         });
     });
@@ -1195,8 +1221,10 @@ async function loadLdapConfig() {
         document.getElementById('ldap-bind-dn').value = config.bind_dn || '';
         document.getElementById('ldap-ad-domain').value = config.ad_domain || '';
         document.getElementById('ldap-search-filter').value = config.user_search_filter || '';
+        document.getElementById('ldap-ein-search-filter').value = config.ein_search_filter || '(&(objectClass=user)(employeeID={ein}))';
         document.getElementById('ldap-email-attr').value = config.email_attribute || 'mail';
         document.getElementById('ldap-username-attr').value = config.username_attribute || 'sAMAccountName';
+        document.getElementById('ldap-ein-attr').value = config.ein_attribute || 'employeeID';
         document.getElementById('ldap-use-ssl').checked = config.use_ssl;
         document.getElementById('ldap-use-tls').checked = config.use_tls;
         // Note: bind_password is never returned from server
@@ -1220,8 +1248,10 @@ async function handleSaveLdapConfig(e) {
         bind_password: document.getElementById('ldap-bind-password').value || null,
         ad_domain: document.getElementById('ldap-ad-domain').value || null,
         user_search_filter: document.getElementById('ldap-search-filter').value || '(&(objectClass=user)(sAMAccountName={username}))',
+        ein_search_filter: document.getElementById('ldap-ein-search-filter').value || '(&(objectClass=user)(employeeID={ein}))',
         email_attribute: document.getElementById('ldap-email-attr').value || 'mail',
         username_attribute: document.getElementById('ldap-username-attr').value || 'sAMAccountName',
+        ein_attribute: document.getElementById('ldap-ein-attr').value || 'employeeID',
         use_ssl: document.getElementById('ldap-use-ssl').checked,
         use_tls: document.getElementById('ldap-use-tls').checked
     };

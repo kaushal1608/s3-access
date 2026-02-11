@@ -98,8 +98,10 @@ def create_ldap_config(
         bind_dn=config_data.bind_dn,
         bind_password_encrypted=encrypted_bind_password,
         user_search_filter=config_data.user_search_filter,
+        ein_search_filter=config_data.ein_search_filter,
         email_attribute=config_data.email_attribute,
         username_attribute=config_data.username_attribute,
+        ein_attribute=config_data.ein_attribute,
         ad_domain=config_data.ad_domain,
         use_ssl=config_data.use_ssl,
         use_tls=config_data.use_tls

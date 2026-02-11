@@ -123,6 +123,7 @@ def authenticate_ldap_user(
     password: str,
     email_attribute: str = "mail",
     username_attribute: str = "sAMAccountName",
+    ein_attribute: str = "employeeID",
     use_ssl: bool = False,
     use_tls: bool = True,
     ad_domain: Optional[str] = None
@@ -132,7 +133,7 @@ def authenticate_ldap_user(
     
     Flow:
     1. Bind with service account to search for the user
-    2. Find the user's DN
+    2. Find the user's DN (searches by username, EIN, or email)
     3. Attempt to bind as the user with their password
     4. If bind succeeds → authenticated (password never stored)
     
@@ -153,14 +154,17 @@ def authenticate_ldap_user(
 
         # Step 2: Search for the user
         search_base = user_search_base or base_dn
-        search_filter = user_search_filter.replace("{username}", username)
+        search_filter = user_search_filter.replace("{username}", username).replace("{ein}", username)
 
         logger.info(f"LDAP search: base={search_base}, filter={search_filter}")
+
+        # Request EIN attribute in addition to standard ones
+        search_attrs = [email_attribute, username_attribute, ein_attribute, 'cn', 'distinguishedName']
 
         admin_conn.search(
             search_base,
             search_filter,
-            attributes=[email_attribute, username_attribute, 'cn', 'distinguishedName']
+            attributes=search_attrs
         )
 
         if not admin_conn.entries:
@@ -172,6 +176,8 @@ def authenticate_ldap_user(
         user_dn = str(user_entry.entry_dn)
         user_email = str(getattr(user_entry, email_attribute, '')) if hasattr(user_entry, email_attribute) else None
         user_cn = str(getattr(user_entry, 'cn', username))
+        user_ein = str(getattr(user_entry, ein_attribute, '')) if hasattr(user_entry, ein_attribute) else None
+        user_sam = str(getattr(user_entry, username_attribute, '')) if hasattr(user_entry, username_attribute) else None
 
         admin_conn.unbind()
 
@@ -191,16 +197,25 @@ def authenticate_ldap_user(
             logger.warning(f"LDAP authentication failed for user: {username} (wrong password)")
             return False, None, "Invalid password"
 
-        # Step 4: Authentication successful
+        # Step 4: Authentication successful — build user info
+        # Determine email: from AD attribute, or construct from username@domain
+        final_email = user_email
+        if not final_email or final_email == '[]' or final_email == '':
+            if ad_domain:
+                final_email = f"{user_sam or username}@{ad_domain}"
+            else:
+                final_email = username
+
         user_info = {
-            "username": username,
-            "email": user_email or f"{username}@{ad_domain}" if ad_domain else username,
+            "username": user_sam or username,
+            "email": final_email,
             "display_name": user_cn,
             "dn": user_dn,
+            "ein": user_ein,
             "auth_type": "ldap"
         }
 
-        logger.info(f"LDAP authentication successful for: {username}")
+        logger.info(f"LDAP authentication successful for: {username} (email: {final_email})")
         return True, user_info, "Authentication successful"
 
     except LDAPBindError as e:

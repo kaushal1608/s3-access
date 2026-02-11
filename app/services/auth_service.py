@@ -39,6 +39,12 @@ class AuthService:
 
     def _authenticate_local(self, db: Session, login_data: UserLogin):
         """Standard local authentication with bcrypt-hashed password."""
+        if not login_data.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is required for local login"
+            )
+
         logger.info(f"Local auth for: {login_data.email}")
         user = user_repository.get_by_email(db, login_data.email)
         if not user or not user.password_hash or not verify_password(login_data.password, user.password_hash):
@@ -66,9 +72,10 @@ class AuthService:
         """
         LDAP/AD authentication flow:
         1. Get LDAP config from DB
-        2. Authenticate user against AD (password sent over TLS, never stored)
-        3. Auto-provision local user record (no password stored)
-        4. Issue JWT token
+        2. Determine search filter (EIN vs username)
+        3. Authenticate user against AD (password sent over TLS, never stored)
+        4. Auto-provision local user record (no password stored)
+        5. Issue JWT token
         """
         # Get LDAP config
         ldap_config = db.query(LdapConfig).filter(LdapConfig.is_enabled == True).first()
@@ -88,8 +95,31 @@ class AuthService:
                 detail="LDAP configuration error. Contact administrator."
             )
 
-        # The username for AD lookup
-        ldap_username = login_data.ldap_username or login_data.email.split("@")[0]
+        # Determine what the user is logging in with:
+        # Priority: identifier (EIN) > ldap_username > email prefix
+        ldap_identifier = login_data.identifier or login_data.ldap_username
+        
+        if not ldap_identifier and login_data.email:
+            ldap_identifier = login_data.email.split("@")[0]
+        
+        if not ldap_identifier:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Employee ID or username is required for LDAP login"
+            )
+
+        # Determine which search filter to use
+        # If identifier looks like a pure number (EIN), use ein_search_filter
+        # Otherwise use the standard user_search_filter (sAMAccountName)
+        if login_data.identifier and login_data.identifier.strip().isdigit():
+            # EIN / Employee ID — use EIN search filter
+            search_filter = getattr(ldap_config, 'ein_search_filter', None) or "(&(objectClass=user)(employeeID={ein}))"
+            search_filter = search_filter.replace("{ein}", ldap_identifier)
+            logger.info(f"LDAP auth with EIN: {ldap_identifier}")
+        else:
+            # Username / sAMAccountName — use standard filter
+            search_filter = ldap_config.user_search_filter
+            logger.info(f"LDAP auth with username: {ldap_identifier}")
 
         # Authenticate against AD — password is verified by AD, never stored here
         success, user_info, message = authenticate_ldap_user(
@@ -98,11 +128,12 @@ class AuthService:
             bind_password=bind_password,
             base_dn=ldap_config.base_dn,
             user_search_base=ldap_config.user_search_base,
-            user_search_filter=ldap_config.user_search_filter,
-            username=ldap_username,
+            user_search_filter=search_filter,
+            username=ldap_identifier,
             password=login_data.password,  # Sent to AD, never stored
             email_attribute=ldap_config.email_attribute,
             username_attribute=ldap_config.username_attribute,
+            ein_attribute=getattr(ldap_config, 'ein_attribute', 'employeeID'),
             use_ssl=ldap_config.use_ssl,
             use_tls=ldap_config.use_tls,
             ad_domain=ldap_config.ad_domain
@@ -116,7 +147,13 @@ class AuthService:
             )
 
         # Auto-provision or update local user (no password stored!)
-        user_email = user_info.get("email", login_data.email)
+        user_email = user_info.get("email", "")
+        if not user_email or user_email == '[]':
+            # Fallback: construct email from username@domain
+            uname = user_info.get("username", ldap_identifier)
+            domain = ldap_config.ad_domain or "ldap.local"
+            user_email = f"{uname}@{domain}"
+
         user = user_repository.get_by_email(db, user_email)
 
         if not user:

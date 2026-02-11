@@ -23,12 +23,16 @@ class LdapConfig(Base):
     bind_dn = Column(String, nullable=False)            # e.g. CN=svc_ldap,OU=ServiceAccounts,DC=company,DC=local
     bind_password_encrypted = Column(String, nullable=False)  # Encrypted bind password (never plaintext)
 
-    # Search filter to find users
+    # Search filter to find users by username
     user_search_filter = Column(String, default="(&(objectClass=user)(sAMAccountName={username}))")
+
+    # Search filter to find users by EIN/Employee ID
+    ein_search_filter = Column(String, default="(&(objectClass=user)(employeeID={ein}))")
 
     # Attribute mapping
     email_attribute = Column(String, default="mail")
     username_attribute = Column(String, default="sAMAccountName")
+    ein_attribute = Column(String, default="employeeID")  # AD attribute for Employee ID / EIN
 
     # AD Domain (e.g., company.local) — users from this domain get admin role
     ad_domain = Column(String, nullable=True)           # e.g. company.local

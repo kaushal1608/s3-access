@@ -31,7 +31,20 @@ def run_migrations():
                 conn.commit()
                 logger.info("Migration: 'auth_type' column added successfully")
         
-        # Migration 2: create_all for any brand new tables (e.g. ldap_config)
+        # Migration 2: Add EIN columns to ldap_config table
+        if 'ldap_config' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('ldap_config')]
+            if 'ein_search_filter' not in columns:
+                logger.info("Migration: Adding 'ein_search_filter' column to ldap_config table")
+                conn.execute(text("ALTER TABLE ldap_config ADD COLUMN ein_search_filter VARCHAR DEFAULT '(&(objectClass=user)(employeeID={ein}))'"))
+                conn.commit()
+            if 'ein_attribute' not in columns:
+                logger.info("Migration: Adding 'ein_attribute' column to ldap_config table")
+                conn.execute(text("ALTER TABLE ldap_config ADD COLUMN ein_attribute VARCHAR DEFAULT 'employeeID'"))
+                conn.commit()
+                logger.info("Migration: EIN columns added successfully")
+        
+        # Migration 3: create_all for any brand new tables (e.g. ldap_config)
         Base.metadata.create_all(bind=engine)
         logger.info("Database migrations complete")
 

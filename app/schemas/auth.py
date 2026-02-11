@@ -1,16 +1,40 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, field_validator
 from typing import Optional
+import re
 
 class UserBase(BaseModel):
-    email: EmailStr
+    email: str  # Using str instead of EmailStr to allow .local domains
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        # Allow standard emails AND .local domain emails (e.g. admin@company.local)
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(pattern, v):
+            raise ValueError('Invalid email format')
+        return v.lower().strip()
 
 class UserCreate(UserBase):
     password: str
 
-class UserLogin(UserBase):
+class UserLogin(BaseModel):
+    """
+    Login supports multiple modes:
+    - Local login: email + password
+    - LDAP login: identifier (EIN/Employee ID) + password
+    """
+    email: Optional[str] = None           # For local login
     password: str
     auth_method: Optional[str] = "local"  # "local" or "ldap"
-    ldap_username: Optional[str] = None   # For LDAP: the sAMAccountName / AD username
+    identifier: Optional[str] = None      # For LDAP: EIN / Employee ID / username
+    ldap_username: Optional[str] = None   # Legacy: sAMAccountName (kept for compatibility)
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def normalize_email(cls, v):
+        if v:
+            return v.lower().strip()
+        return v
 
 class Token(BaseModel):
     access_token: str
@@ -20,8 +44,9 @@ class Token(BaseModel):
     role: str = "user"
     auth_type: str = "local"  # "local" or "ldap"
 
-class UserResponse(UserBase):
+class UserResponse(BaseModel):
     id: int
+    email: str
     role: str
     auth_type: str = "local"
 
@@ -39,8 +64,10 @@ class LdapConfigCreate(BaseModel):
     bind_dn: str
     bind_password: str  # Plaintext here — encrypted before storage
     user_search_filter: str = "(&(objectClass=user)(sAMAccountName={username}))"
+    ein_search_filter: str = "(&(objectClass=user)(employeeID={ein}))"  # Filter for EIN lookup
     email_attribute: str = "mail"
     username_attribute: str = "sAMAccountName"
+    ein_attribute: str = "employeeID"  # AD attribute for Employee ID / EIN
     ad_domain: Optional[str] = None
     use_ssl: bool = False
     use_tls: bool = True
@@ -55,8 +82,10 @@ class LdapConfigResponse(BaseModel):
     bind_dn: str
     # bind_password is NEVER returned
     user_search_filter: str
+    ein_search_filter: str = "(&(objectClass=user)(employeeID={ein}))"
     email_attribute: str
     username_attribute: str
+    ein_attribute: str = "employeeID"
     ad_domain: Optional[str] = None
     use_ssl: bool
     use_tls: bool
@@ -70,8 +99,10 @@ class LdapConfigUpdate(BaseModel):
     bind_dn: Optional[str] = None
     bind_password: Optional[str] = None  # Only sent when changing
     user_search_filter: Optional[str] = None
+    ein_search_filter: Optional[str] = None
     email_attribute: Optional[str] = None
     username_attribute: Optional[str] = None
+    ein_attribute: Optional[str] = None
     ad_domain: Optional[str] = None
     use_ssl: Optional[bool] = None
     use_tls: Optional[bool] = None

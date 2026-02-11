@@ -53,20 +53,21 @@
                         </button>
                     </div>
                 </div>
-                <!-- LDAP Username field (shown when LDAP selected) -->
+                <!-- LDAP Employee ID field (shown when LDAP selected) -->
                 <div id="ldap-username-group" class="form-group hidden">
-                    <label for="ldap-username">AD Username</label>
+                    <label for="ldap-username">Employee ID (EIN)</label>
                     <div class="input-wrapper">
-                        <i class="fas fa-user-shield"></i>
-                        <input type="text" id="ldap-username" placeholder="e.g. john.doe">
+                        <i class="fas fa-id-badge"></i>
+                        <input type="text" id="ldap-username" placeholder="e.g. 123456 or john.doe">
                     </div>
-                    <p class="form-hint" id="ldap-domain-hint"></p>
+                    <p class="form-hint" id="ldap-domain-hint"><i class="fas fa-circle-info"></i> Enter your Employee ID
+                        or AD username</p>
                 </div>
-                <div class="form-group">
+                <div id="login-email-group" class="form-group">
                     <label for="login-email">Email Address</label>
                     <div class="input-wrapper">
                         <i class="fas fa-envelope"></i>
-                        <input type="email" id="login-email" placeholder="you@example.com" required>
+                        <input type="text" id="login-email" placeholder="you@example.com" required>
                     </div>
                 </div>
                 <div class="form-group">
@@ -91,7 +92,7 @@
                     <label for="register-email">Email Address</label>
                     <div class="input-wrapper">
                         <i class="fas fa-envelope"></i>
-                        <input type="email" id="register-email" placeholder="you@example.com" required>
+                        <input type="text" id="register-email" placeholder="you@example.com" required>
                     </div>
                 </div>
                 <div class="form-group">
@@ -582,12 +583,22 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="ldap-search-filter">User Search Filter</label>
+                            <label for="ldap-search-filter">User Search Filter (by username)</label>
                             <div class="input-wrapper">
                                 <i class="fas fa-filter"></i>
                                 <input type="text" id="ldap-search-filter"
                                     placeholder="(&(objectClass=user)(sAMAccountName={username}))">
                             </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ldap-ein-search-filter">EIN Search Filter (by Employee ID)</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-id-card"></i>
+                                <input type="text" id="ldap-ein-search-filter"
+                                    placeholder="(&(objectClass=user)(employeeID={ein}))">
+                            </div>
+                            <p class="form-hint"><i class="fas fa-circle-info"></i> Used when users log in with their
+                                Employee ID</p>
                         </div>
                         <div style="display: flex; gap: 1rem;">
                             <div class="form-group" style="flex: 1;">
@@ -604,6 +615,13 @@
                                     <input type="text" id="ldap-username-attr" placeholder="sAMAccountName"
                                         value="sAMAccountName">
                                 </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ldap-ein-attr">EIN / Employee ID Attribute</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-hashtag"></i>
+                                <input type="text" id="ldap-ein-attr" placeholder="employeeID" value="employeeID">
                             </div>
                         </div>
                         <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
