@@ -27,7 +27,10 @@ const state = {
     currentView: 'folders',
     folders: [],
     files: [],
-    isSharedView: false
+    isSharedView: false,
+    ldapEnabled: false,
+    authMethod: 'local',  // 'local' or 'ldap'
+    adDomain: null
 };
 
 // ==========================================
@@ -335,6 +338,30 @@ function showDashboard() {
     elements.authContainer.classList.add('hidden');
     elements.dashboardContainer.classList.remove('hidden');
     elements.userEmail.textContent = state.user.email;
+
+    // Configure settings visibility based on user role and auth_type
+    const passwordSection = document.getElementById('password-change-section');
+    const ldapNotice = document.getElementById('ldap-password-notice');
+    const ldapConfigSection = document.getElementById('ldap-config-section');
+
+    if (state.user.auth_type === 'ldap') {
+        // LDAP users: hide password change, show notice
+        if (passwordSection) passwordSection.classList.add('hidden');
+        if (ldapNotice) ldapNotice.classList.remove('hidden');
+    } else {
+        // Local users: show password change, hide notice
+        if (passwordSection) passwordSection.classList.remove('hidden');
+        if (ldapNotice) ldapNotice.classList.add('hidden');
+    }
+
+    // Only admin users (with .local domain) can see LDAP config
+    if (state.user.role === 'admin') {
+        if (ldapConfigSection) ldapConfigSection.classList.remove('hidden');
+        loadLdapConfig();
+    } else {
+        if (ldapConfigSection) ldapConfigSection.classList.add('hidden');
+    }
+
     loadFolders();
 }
 
@@ -561,16 +588,32 @@ async function handleLogin(e) {
 
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
+    const ldapUsername = document.getElementById('ldap-username')?.value || null;
 
     try {
         showLoading();
         hideAuthMessage();
 
-        const data = await login(email, password);
+        const loginPayload = {
+            email,
+            password,
+            auth_method: state.authMethod,
+            ldap_username: state.authMethod === 'ldap' ? ldapUsername : null
+        };
+
+        const data = await apiRequest('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify(loginPayload)
+        });
         console.log('Login response:', data);
 
         state.token = data.access_token;
-        state.user = { email: data.email || email, id: data.user_id };
+        state.user = {
+            email: data.email || email,
+            id: data.user_id,
+            role: data.role || 'user',
+            auth_type: data.auth_type || 'local'
+        };
         console.log('User state set:', state.user);
 
         localStorage.setItem(CONFIG.TOKEN_KEY, data.access_token);
@@ -951,6 +994,9 @@ function initEventListeners() {
             if (state.user) {
                 document.getElementById('profile-email-display').value = state.user.email;
                 document.getElementById('profile-id-display').value = state.user.id || 'N/A';
+                document.getElementById('profile-role-display').value = state.user.role || 'user';
+                document.getElementById('profile-auth-display').value =
+                    state.user.auth_type === 'ldap' ? 'Active Directory (LDAP)' : 'Local';
             }
             openModal(elements.profileModal);
         });
@@ -972,24 +1018,61 @@ function initEventListeners() {
             const confirmPassword = document.getElementById('confirm-password').value;
 
             if (newPassword !== confirmPassword) {
-                showToast('Passwords do not match', 'error');
+                showToast('error', 'Error', 'Passwords do not match');
                 return;
             }
 
             if (newPassword.length < 6) {
-                showToast('Password must be at least 6 characters', 'error');
+                showToast('error', 'Error', 'Password must be at least 6 characters');
                 return;
             }
 
             try {
-                // Note: Backend endpoint for password change would need to be implemented
-                showToast('Password change feature requires backend API', 'warning');
+                showLoading();
+                await apiRequest('/auth/change-password', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_password: newPassword
+                    })
+                });
+                showToast('success', 'Password Updated', 'Your password has been changed successfully');
                 closeModal(elements.settingsModal);
                 elements.changePasswordForm.reset();
             } catch (error) {
-                showToast('Failed to change password', 'error');
+                showToast('error', 'Error', error.message || 'Failed to change password');
+            } finally {
+                hideLoading();
             }
         });
+    }
+
+    // LDAP Auth Method Toggle
+    document.querySelectorAll('.auth-method-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.auth-method-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.authMethod = btn.dataset.method;
+
+            const ldapUsernameGroup = document.getElementById('ldap-username-group');
+            if (state.authMethod === 'ldap') {
+                ldapUsernameGroup.classList.remove('hidden');
+            } else {
+                ldapUsernameGroup.classList.add('hidden');
+            }
+        });
+    });
+
+    // LDAP Config Form (admin only)
+    const ldapConfigForm = document.getElementById('ldap-config-form');
+    if (ldapConfigForm) {
+        ldapConfigForm.addEventListener('submit', handleSaveLdapConfig);
+    }
+
+    // LDAP Test Connection
+    const ldapTestBtn = document.getElementById('ldap-test-btn');
+    if (ldapTestBtn) {
+        ldapTestBtn.addEventListener('click', handleTestLdapConnection);
     }
 
     // Breadcrumb Back
@@ -1078,6 +1161,155 @@ function initEventListeners() {
 }
 
 // ==========================================
+// LDAP Functions
+// ==========================================
+
+async function checkLdapStatus() {
+    try {
+        const data = await apiRequest('/auth/ldap/status');
+        state.ldapEnabled = data.ldap_enabled;
+        state.adDomain = data.ad_domain;
+
+        const ldapToggle = document.getElementById('ldap-login-toggle');
+        const ldapDomainHint = document.getElementById('ldap-domain-hint');
+
+        if (state.ldapEnabled && ldapToggle) {
+            ldapToggle.classList.remove('hidden');
+            if (ldapDomainHint && state.adDomain) {
+                ldapDomainHint.textContent = `Domain: ${state.adDomain}`;
+            }
+        }
+    } catch (error) {
+        console.log('LDAP status check failed (non-critical):', error.message);
+    }
+}
+
+async function loadLdapConfig() {
+    try {
+        const config = await apiRequest('/auth/ldap/config');
+        // Populate the form
+        document.getElementById('ldap-enabled').checked = config.is_enabled;
+        document.getElementById('ldap-server-url').value = config.server_url || '';
+        document.getElementById('ldap-base-dn').value = config.base_dn || '';
+        document.getElementById('ldap-user-search-base').value = config.user_search_base || '';
+        document.getElementById('ldap-bind-dn').value = config.bind_dn || '';
+        document.getElementById('ldap-ad-domain').value = config.ad_domain || '';
+        document.getElementById('ldap-search-filter').value = config.user_search_filter || '';
+        document.getElementById('ldap-email-attr').value = config.email_attribute || 'mail';
+        document.getElementById('ldap-username-attr').value = config.username_attribute || 'sAMAccountName';
+        document.getElementById('ldap-use-ssl').checked = config.use_ssl;
+        document.getElementById('ldap-use-tls').checked = config.use_tls;
+        // Note: bind_password is never returned from server
+    } catch (error) {
+        // 404 means not configured yet, which is fine
+        if (!error.message.includes('404') && !error.message.includes('not configured')) {
+            console.log('LDAP config load failed:', error.message);
+        }
+    }
+}
+
+async function handleSaveLdapConfig(e) {
+    e.preventDefault();
+
+    const configData = {
+        is_enabled: document.getElementById('ldap-enabled').checked,
+        server_url: document.getElementById('ldap-server-url').value,
+        base_dn: document.getElementById('ldap-base-dn').value,
+        user_search_base: document.getElementById('ldap-user-search-base').value || null,
+        bind_dn: document.getElementById('ldap-bind-dn').value,
+        bind_password: document.getElementById('ldap-bind-password').value || null,
+        ad_domain: document.getElementById('ldap-ad-domain').value || null,
+        user_search_filter: document.getElementById('ldap-search-filter').value || '(&(objectClass=user)(sAMAccountName={username}))',
+        email_attribute: document.getElementById('ldap-email-attr').value || 'mail',
+        username_attribute: document.getElementById('ldap-username-attr').value || 'sAMAccountName',
+        use_ssl: document.getElementById('ldap-use-ssl').checked,
+        use_tls: document.getElementById('ldap-use-tls').checked
+    };
+
+    if (!configData.server_url || !configData.base_dn || !configData.bind_dn) {
+        showToast('error', 'Validation Error', 'Server URL, Base DN, and Bind DN are required');
+        return;
+    }
+
+    try {
+        showLoading();
+
+        // Try PUT first (update), if 404 then POST (create)
+        try {
+            await apiRequest('/auth/ldap/config', {
+                method: 'PUT',
+                body: JSON.stringify(configData)
+            });
+        } catch (error) {
+            if (error.message.includes('not configured') || error.message.includes('404')) {
+                // Need bind_password for initial creation
+                if (!configData.bind_password) {
+                    showToast('error', 'Error', 'Bind Password is required for initial LDAP setup');
+                    return;
+                }
+                await apiRequest('/auth/ldap/config', {
+                    method: 'POST',
+                    body: JSON.stringify(configData)
+                });
+            } else {
+                throw error;
+            }
+        }
+
+        showToast('success', 'LDAP Saved', 'LDAP configuration has been saved securely');
+        // Clear bind password field after save
+        document.getElementById('ldap-bind-password').value = '';
+    } catch (error) {
+        showToast('error', 'Error', error.message || 'Failed to save LDAP config');
+    } finally {
+        hideLoading();
+    }
+}
+
+async function handleTestLdapConnection() {
+    const resultDiv = document.getElementById('ldap-test-result');
+    const testData = {
+        server_url: document.getElementById('ldap-server-url').value,
+        bind_dn: document.getElementById('ldap-bind-dn').value,
+        bind_password: document.getElementById('ldap-bind-password').value,
+        base_dn: document.getElementById('ldap-base-dn').value,
+        use_ssl: document.getElementById('ldap-use-ssl').checked,
+        use_tls: document.getElementById('ldap-use-tls').checked
+    };
+
+    if (!testData.server_url || !testData.bind_dn || !testData.bind_password || !testData.base_dn) {
+        showToast('error', 'Error', 'Fill in Server URL, Bind DN, Bind Password, and Base DN to test');
+        return;
+    }
+
+    try {
+        showLoading();
+        const data = await apiRequest('/auth/ldap/test', {
+            method: 'POST',
+            body: JSON.stringify(testData)
+        });
+
+        resultDiv.classList.remove('hidden');
+        if (data.success) {
+            resultDiv.style.background = 'rgba(34,197,94,0.15)';
+            resultDiv.style.color = '#22c55e';
+            resultDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+        } else {
+            resultDiv.style.background = 'rgba(239,68,68,0.15)';
+            resultDiv.style.color = '#ef4444';
+            resultDiv.innerHTML = '<i class="fas fa-times-circle"></i> ' + data.message;
+        }
+    } catch (error) {
+        resultDiv.classList.remove('hidden');
+        resultDiv.style.background = 'rgba(239,68,68,0.15)';
+        resultDiv.style.color = '#ef4444';
+        resultDiv.innerHTML = '<i class="fas fa-times-circle"></i> ' + (error.message || 'Connection test failed');
+    } finally {
+        hideLoading();
+    }
+}
+
+// ==========================================
 // Initialize
 // ==========================================
 
@@ -1085,5 +1317,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('CloudVault - Initializing...');
     initEventListeners();
     initAuth();
+    checkLdapStatus();  // Check if LDAP is enabled (for login page toggle)
     console.log('CloudVault - Ready!');
 });

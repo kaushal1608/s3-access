@@ -8,6 +8,9 @@ from app.database import engine, Base
 from app.config import get_settings
 from app.logger import logger
 
+# Import all models so Base.metadata.create_all picks them up
+import app.models  # noqa: F401 - ensures User, Folder, File, LdapConfig tables are created
+
 # Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
 

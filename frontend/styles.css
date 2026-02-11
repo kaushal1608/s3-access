@@ -997,3 +997,75 @@ body {
     width: 100%;
     justify-content: flex-start;
 }
+
+/* ==========================================================================
+   LDAP Auth Toggle
+   ========================================================================== */
+.ldap-toggle {
+    margin-bottom: 1.5rem;
+}
+
+.auth-method-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.06);
+    padding: 4px;
+    border-radius: var(--radius-md);
+    gap: 4px;
+}
+
+.auth-method-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 0.65rem 1rem;
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: var(--font-body);
+}
+
+.auth-method-btn:hover {
+    color: var(--text-main);
+}
+
+.auth-method-btn.active {
+    color: white;
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.auth-method-btn i {
+    font-size: 0.8rem;
+}
+
+/* Form Hints */
+.form-hint {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.form-hint i {
+    color: var(--success);
+    font-size: 0.75rem;
+}
+
+/* LDAP Config Section */
+#ldap-config-section .form-group {
+    margin-bottom: 1.25rem;
+}
+
+#ldap-config-section h3 i {
+    margin-right: 0.5rem;
+    color: var(--primary);
+}

@@ -42,6 +42,26 @@
 
             <!-- Login Form -->
             <form id="login-form" class="auth-form active">
+                <!-- LDAP Toggle (shown only when LDAP is enabled) -->
+                <div id="ldap-login-toggle" class="ldap-toggle hidden">
+                    <div class="auth-method-tabs">
+                        <button type="button" class="auth-method-btn active" data-method="local">
+                            <i class="fas fa-database"></i> Local
+                        </button>
+                        <button type="button" class="auth-method-btn" data-method="ldap">
+                            <i class="fas fa-network-wired"></i> Active Directory
+                        </button>
+                    </div>
+                </div>
+                <!-- LDAP Username field (shown when LDAP selected) -->
+                <div id="ldap-username-group" class="form-group hidden">
+                    <label for="ldap-username">AD Username</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-user-shield"></i>
+                        <input type="text" id="ldap-username" placeholder="e.g. john.doe">
+                    </div>
+                    <p class="form-hint" id="ldap-domain-hint"></p>
+                </div>
                 <div class="form-group">
                     <label for="login-email">Email Address</label>
                     <div class="input-wrapper">
@@ -353,6 +373,22 @@
                             style="background: rgba(0,0,0,0.2); cursor: default;">
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-shield-halved"></i>
+                        <input type="text" id="profile-role-display" readonly value="user"
+                            style="background: rgba(0,0,0,0.2); cursor: default; text-transform: capitalize;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Authentication</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-key"></i>
+                        <input type="text" id="profile-auth-display" readonly value="Local"
+                            style="background: rgba(0,0,0,0.2); cursor: default;">
+                    </div>
+                </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-primary modal-close-btn" style="width: 100%;">Close</button>
                 </div>
@@ -427,7 +463,7 @@
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal hidden">
         <div class="modal-overlay"></div>
-        <div class="modal-content glass-card">
+        <div class="modal-content glass-card" style="max-width: 600px;">
             <div class="modal-header">
                 <h2><i class="fas fa-cog"></i> Settings</h2>
                 <button class="modal-close">
@@ -435,37 +471,165 @@
                 </button>
             </div>
             <div class="modal-body">
-                <h3 style="margin-bottom: 1.5rem; color: var(--text-main);">Change Password</h3>
-                <form id="change-password-form">
-                    <div class="form-group">
-                        <label for="current-password">Current Password</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-lock"></i>
-                            <input type="password" id="current-password" placeholder="Enter current password" required>
+                <!-- Password Change Section (hidden for LDAP users) -->
+                <div id="password-change-section">
+                    <h3 style="margin-bottom: 1.5rem; color: var(--text-main);">Change Password</h3>
+                    <form id="change-password-form">
+                        <div class="form-group">
+                            <label for="current-password">Current Password</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="current-password" placeholder="Enter current password"
+                                    required>
+                            </div>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="new-password">New Password</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-key"></i>
-                            <input type="password" id="new-password" placeholder="Enter new password" required
-                                minlength="6">
+                        <div class="form-group">
+                            <label for="new-password">New Password</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-key"></i>
+                                <input type="password" id="new-password" placeholder="Enter new password" required
+                                    minlength="6">
+                            </div>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="confirm-password">Confirm New Password</label>
-                        <div class="input-wrapper">
-                            <i class="fas fa-check-double"></i>
-                            <input type="password" id="confirm-password" placeholder="Confirm new password" required>
+                        <div class="form-group">
+                            <label for="confirm-password">Confirm New Password</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-check-double"></i>
+                                <input type="password" id="confirm-password" placeholder="Confirm new password"
+                                    required>
+                            </div>
                         </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary modal-close-btn">Cancel</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Password
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- LDAP User Notice (shown for LDAP users instead of password form) -->
+                <div id="ldap-password-notice" class="hidden">
+                    <div style="text-align: center; padding: 2rem 1rem;">
+                        <i class="fas fa-network-wired"
+                            style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                        <h3 style="color: var(--text-main); margin-bottom: 0.5rem;">Active Directory User</h3>
+                        <p style="color: var(--text-secondary);">Your account is managed by Active Directory.<br>Please
+                            contact your IT administrator to change your password.</p>
                     </div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary modal-close-btn">Cancel</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> Update Password
-                        </button>
-                    </div>
-                </form>
+                </div>
+
+                <!-- LDAP Configuration Section (admin only) -->
+                <div id="ldap-config-section" class="hidden"
+                    style="margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 2rem;">
+                    <h3 style="margin-bottom: 1.5rem; color: var(--text-main);">
+                        <i class="fas fa-network-wired"></i> LDAP / Active Directory
+                    </h3>
+                    <form id="ldap-config-form">
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="ldap-enabled"
+                                    style="width: 18px; height: 18px; accent-color: var(--primary);">
+                                <span>Enable LDAP Authentication</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="ldap-server-url">LDAP Server URL</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-server"></i>
+                                <input type="text" id="ldap-server-url"
+                                    placeholder="ldap://dc01.company.local or ldaps://dc01.company.local">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ldap-base-dn">Base DN</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-sitemap"></i>
+                                <input type="text" id="ldap-base-dn" placeholder="DC=company,DC=local">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ldap-user-search-base">User Search Base (optional)</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="ldap-user-search-base"
+                                    placeholder="OU=Users,DC=company,DC=local">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ldap-bind-dn">Bind DN (Service Account)</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-id-badge"></i>
+                                <input type="text" id="ldap-bind-dn"
+                                    placeholder="CN=svc_ldap,OU=ServiceAccounts,DC=company,DC=local">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ldap-bind-password">Bind Password</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-key"></i>
+                                <input type="password" id="ldap-bind-password"
+                                    placeholder="Service account password (encrypted at rest)">
+                            </div>
+                            <p class="form-hint"><i class="fas fa-shield-halved"></i> Encrypted before storage — never
+                                saved as plaintext</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="ldap-ad-domain">AD Domain</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-globe"></i>
+                                <input type="text" id="ldap-ad-domain" placeholder="company.local">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="ldap-search-filter">User Search Filter</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-filter"></i>
+                                <input type="text" id="ldap-search-filter"
+                                    placeholder="(&(objectClass=user)(sAMAccountName={username}))">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 1rem;">
+                            <div class="form-group" style="flex: 1;">
+                                <label for="ldap-email-attr">Email Attribute</label>
+                                <div class="input-wrapper">
+                                    <i class="fas fa-at"></i>
+                                    <input type="text" id="ldap-email-attr" placeholder="mail" value="mail">
+                                </div>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label for="ldap-username-attr">Username Attribute</label>
+                                <div class="input-wrapper">
+                                    <i class="fas fa-user"></i>
+                                    <input type="text" id="ldap-username-attr" placeholder="sAMAccountName"
+                                        value="sAMAccountName">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="ldap-use-ssl"
+                                    style="width: 16px; height: 16px; accent-color: var(--primary);">
+                                <span>Use SSL</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                                <input type="checkbox" id="ldap-use-tls" checked
+                                    style="width: 16px; height: 16px; accent-color: var(--primary);">
+                                <span>Use StartTLS</span>
+                            </label>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" id="ldap-test-btn" class="btn btn-secondary">
+                                <i class="fas fa-plug"></i> Test Connection
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save LDAP Config
+                            </button>
+                        </div>
+                    </form>
+                    <div id="ldap-test-result" class="hidden"
+                        style="margin-top: 1rem; padding: 1rem; border-radius: 8px;"></div>
+                </div>
             </div>
         </div>
     </div>
