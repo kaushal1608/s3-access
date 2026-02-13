@@ -1,5 +1,5 @@
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
@@ -7,6 +7,7 @@ from app.routers import auth, folders, files
 from app.database import engine, Base
 from app.config import get_settings
 from app.logger import logger
+from app.auth.dependencies import get_admin_user
 
 # Import all models so Base.metadata.create_all picks them up
 import app.models  # noqa: F401 - ensures User, Folder, File, LdapConfig tables are created
@@ -52,6 +53,13 @@ run_migrations()
 
 settings = get_settings()
 
+# Warn if SECRET_KEY is weak or default
+if "dev-secret" in settings.SECRET_KEY or len(settings.SECRET_KEY) < 32:
+    logger.warning(
+        "SECRET_KEY appears to be a default or is too short (<32 chars). "
+        "Generate a strong random key for production: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+    )
+
 app = FastAPI(title="Secure Serverless File Portal")
 
 # Logging Middleware
@@ -89,8 +97,8 @@ def root():
     }
 
 @app.get("/debug/s3")
-def debug_s3():
-    """Debug endpoint to check S3 connectivity and AWS credentials"""
+def debug_s3(admin_user=Depends(get_admin_user)):
+    """Debug endpoint to check S3 connectivity and AWS credentials (admin only)"""
     import boto3
     from botocore.exceptions import ClientError, NoCredentialsError
     

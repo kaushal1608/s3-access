@@ -6,6 +6,7 @@ from app.models.ldap_config import LdapConfig
 from app.auth.jwt_handler import get_password_hash, verify_password, create_access_token
 from app.schemas.auth import UserCreate, UserLogin, PasswordChange
 from app.services.ldap_service import authenticate_ldap_user, decrypt_password
+from ldap3.utils.conv import escape_filter_chars
 from app.logger import logger
 
 
@@ -15,6 +16,13 @@ class AuthService:
         if user_repository.get_by_email(db, user_data.email):
             logger.warning(f"Registration failed: Email {user_data.email} already exists")
             raise HTTPException(status_code=400, detail="Email already registered")
+
+        # Password strength validation
+        if len(user_data.password) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 6 characters"
+            )
 
         hashed_password = get_password_hash(user_data.password)
         new_user = User(
@@ -114,7 +122,7 @@ class AuthService:
         if login_data.identifier and login_data.identifier.strip().isdigit():
             # EIN / Employee ID — use EIN search filter
             search_filter = getattr(ldap_config, 'ein_search_filter', None) or "(&(objectClass=user)(employeeID={ein}))"
-            search_filter = search_filter.replace("{ein}", ldap_identifier)
+            search_filter = search_filter.replace("{ein}", escape_filter_chars(ldap_identifier))
             logger.info(f"LDAP auth with EIN: {ldap_identifier}")
         else:
             # Username / sAMAccountName — use standard filter

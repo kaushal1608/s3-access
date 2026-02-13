@@ -10,6 +10,7 @@ from app.models.files import File
 from app.schemas.file import FileResponse, FileUploadURL, FileDownloadURL, FileBase
 from app.auth.dependencies import get_current_user
 from app.s3.service import generate_presigned_upload_url, generate_presigned_download_url, delete_s3_object
+from app.logger import logger
 
 router = APIRouter(tags=["Files"])
 
@@ -87,7 +88,7 @@ def delete_file(file_id: int, db: Session = Depends(get_db), current_user: User 
     try:
         delete_s3_object(file_record.s3_key)
     except Exception as e:
-        print(f"Warning: Could not delete from S3: {e}")
+        logger.warning(f"Could not delete S3 object {file_record.s3_key}: {e}")
     
     # Delete from database
     db.delete(file_record)

@@ -15,6 +15,7 @@ from typing import Optional, Tuple
 from cryptography.fernet import Fernet, InvalidToken
 from ldap3 import Server, Connection, ALL, NTLM, SIMPLE, Tls
 from ldap3.core.exceptions import LDAPBindError, LDAPSocketOpenError, LDAPException
+from ldap3.utils.conv import escape_filter_chars
 import ssl
 
 from app.config import get_settings
@@ -154,7 +155,9 @@ def authenticate_ldap_user(
 
         # Step 2: Search for the user
         search_base = user_search_base or base_dn
-        search_filter = user_search_filter.replace("{username}", username).replace("{ein}", username)
+        # Escape user input to prevent LDAP injection attacks
+        safe_username = escape_filter_chars(username)
+        search_filter = user_search_filter.replace("{username}", safe_username).replace("{ein}", safe_username)
 
         logger.info(f"LDAP search: base={search_base}, filter={search_filter}")
 

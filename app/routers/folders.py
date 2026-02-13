@@ -9,6 +9,8 @@ from app.models.folders import Folder, FolderAccess
 from app.schemas.folder import FolderCreate, FolderResponse, FolderAccessCreate, FolderListResponse, FolderAccessVerify
 from app.auth.dependencies import get_current_user
 from app.auth.jwt_handler import get_password_hash, verify_password
+from app.s3.service import delete_s3_object, list_files
+from app.logger import logger
 
 router = APIRouter(prefix="/folders", tags=["Folders"])
 
@@ -68,7 +70,7 @@ def list_folders(
 
 @router.delete("/{folder_id}")
 def delete_folder(folder_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """Delete a folder - only the owner can delete"""
+    """Delete a folder - only the owner can delete. Also removes all S3 objects."""
     folder = db.query(Folder).filter(Folder.id == folder_id).first()
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -77,8 +79,21 @@ def delete_folder(folder_id: int, db: Session = Depends(get_db), current_user: U
     if folder.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Only the owner can delete this folder")
     
+    # Delete all S3 objects under this folder's prefix
+    try:
+        s3_objects = list_files(folder.s3_prefix)
+        for obj in s3_objects:
+            try:
+                delete_s3_object(obj['Key'])
+                logger.info(f"Deleted S3 object: {obj['Key']}")
+            except Exception as e:
+                logger.warning(f"Failed to delete S3 object {obj['Key']}: {e}")
+    except Exception as e:
+        logger.warning(f"Failed to list S3 objects for prefix {folder.s3_prefix}: {e}")
+    
     db.delete(folder)
     db.commit()
+    logger.info(f"Folder {folder_id} deleted by user {current_user.id}")
     return {"message": "Folder deleted successfully"}
 
 @router.post("/share")

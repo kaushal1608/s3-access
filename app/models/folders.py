@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.database import Base
 
 class Folder(Base):
@@ -10,7 +10,7 @@ class Folder(Base):
     name = Column(String, nullable=False)
     s3_prefix = Column(String, unique=True, nullable=False)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     owner = relationship("User", back_populates="folders")
     files = relationship("File", back_populates="folder", cascade="all, delete-orphan")
@@ -23,7 +23,7 @@ class FolderAccess(Base):
     folder_id = Column(Integer, ForeignKey("folders.id", ondelete="CASCADE"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Nullable for password-only access
     access_password_hash = Column(String, nullable=True)  # Hashed password for access
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     folder = relationship("Folder", back_populates="authorized_users")
     user = relationship("User", back_populates="shared_folders")

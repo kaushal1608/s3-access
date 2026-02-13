@@ -230,7 +230,9 @@ async function apiRequest(endpoint, options = {}) {
             try { data = JSON.parse(text); } catch { data = { message: text }; }
         }
         if (!response.ok) {
-            throw new Error(data?.detail || data?.message || 'Request failed');
+            // Normalize error: backend uses both 'detail' and 'message'
+            const errorMsg = data?.detail || data?.message || `Request failed (${response.status})`;
+            throw new Error(errorMsg);
         }
         return data;
     } catch (error) {
@@ -375,6 +377,7 @@ function logout() {
 
     localStorage.removeItem(CONFIG.TOKEN_KEY);
     localStorage.removeItem(CONFIG.USER_KEY);
+    sessionStorage.clear();  // Clear any session data as well
 
     showAuth();
     showToast('info', 'Logged Out', 'You have been successfully logged out');
@@ -682,6 +685,17 @@ async function handleCreateFolder(e) {
 
     if (!name) return;
 
+    // Client-side folder name validation
+    const folderNameRegex = /^[a-zA-Z0-9 _.\-]+$/;
+    if (!folderNameRegex.test(name)) {
+        showToast('error', 'Invalid Name', 'Folder name can only contain letters, numbers, spaces, underscores, dots, and hyphens');
+        return;
+    }
+    if (name.length > 100) {
+        showToast('error', 'Name Too Long', 'Folder name must be 100 characters or less');
+        return;
+    }
+
     try {
         showLoading();
         await createFolder(name);
@@ -690,7 +704,7 @@ async function handleCreateFolder(e) {
         nameInput.value = '';
 
         await loadFolders();
-        showToast('success', 'Folder Created', `"${name}" has been created`);
+        showToast('success', 'Folder Created', `"${escapeHtml(name)}" has been created`);
     } catch (error) {
         showToast('error', 'Error', error.message);
     } finally {
@@ -781,13 +795,19 @@ async function handleFileUpload(file) {
         return;
     }
 
+    // Pre-check file size (S3 single PUT limit: 5GB)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5GB
+    if (file.size > MAX_FILE_SIZE) {
+        showToast('error', 'File Too Large', `"${file.name}" exceeds the 5GB upload limit. Please use smaller files.`);
+        return;
+    }
+
     try {
         elements.uploadProgress.classList.remove('hidden');
         elements.dropZone.style.display = 'none';
         elements.uploadFilename.textContent = file.name;
         elements.progressFill.style.width = '0%';
         elements.uploadStatus.textContent = 'Getting upload URL...';
-
         // Determine the content type from the file — this MUST be sent to the backend
         // so the presigned URL is signed with the exact same Content-Type we'll use during upload.
         const contentType = file.type || 'application/octet-stream';

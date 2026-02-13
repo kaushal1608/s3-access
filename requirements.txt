@@ -3,7 +3,7 @@ mangum
 uvicorn[standard]
 sqlalchemy
 psycopg2-binary
-pydantic[email]
+pydantic
 python-jose[cryptography]
 passlib[bcrypt]
 bcrypt
@@ -13,7 +13,9 @@ python-dotenv
 pydantic-settings
 aws-lambda-powertools
 ldap3
+cryptography
 pytest
 requests
 httpx
+
 
