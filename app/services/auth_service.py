@@ -18,16 +18,22 @@ def _mask_email(email: str) -> str:
         return f"{name[:2]}***@{parts[1]}" if len(name) > 2 else f"{name[0]}***@{parts[1]}"
     return "***"
 
-def _mask_identifier(value: str) -> str:
-    """Mask identifier for safe logging: 12***"""
-    if len(value) > 2:
-        return f"{value[:2]}***"
+def _mask_identifier(identifier: str) -> str:
+    """Mask identifier (EIN or username) for safe logging"""
+    if not identifier:
+        return "***"
+    if len(identifier) > 4:
+        return f"{identifier[:2]}***{identifier[-1]}"
+    if len(identifier) > 2:
+        return f"{identifier[0]}***"
     return "***"
+
+
 class AuthService:
     def register_user(self, db: Session, user_data: UserCreate):
-        logger.info(f"Registering user: {user_data.email}")
+        logger.info(f"Registering user: {_mask_email(user_data.email)}")
         if user_repository.get_by_email(db, user_data.email):
-            logger.warning(f"Registration failed: Email {user_data.email} already exists")
+            logger.warning(f"Registration failed: Email {_mask_email(user_data.email)} already exists")
             raise HTTPException(status_code=400, detail="Email already registered")
 
         # Password strength validation
@@ -69,7 +75,7 @@ class AuthService:
         logger.info(f"Local auth for: {_mask_email(login_data.email)}")
         user = user_repository.get_by_email(db, login_data.email)
         if not user or not user.password_hash or not verify_password(login_data.password, user.password_hash):
-            logger.warning(f"Local auth failed for {login_data.email}")
+            logger.warning(f"Local auth failed for {_mask_email(login_data.email)}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",

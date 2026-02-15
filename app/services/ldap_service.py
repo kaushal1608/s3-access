@@ -159,6 +159,7 @@ def authenticate_ldap_user(
     
     Returns: (success, user_info_dict, message)
     """
+    masked_username = username[:2] + '***' if len(username) > 2 else '***'
     try:
         server = _create_ldap_server(server_url, use_ssl, use_tls, validate_cert, ca_cert_path)
 
@@ -192,8 +193,7 @@ def authenticate_ldap_user(
 
         if not admin_conn.entries:
             admin_conn.unbind()
-            masked = username[:2] + '***' if len(username) > 2 else '***'
-            logger.warning(f"LDAP user not found: {masked}")
+            logger.warning(f"LDAP user not found: {masked_username}")
             return False, None, "User not found in Active Directory"
 
         user_entry = admin_conn.entries[0]
@@ -218,7 +218,7 @@ def authenticate_ldap_user(
             )
             user_conn.unbind()
         except LDAPBindError:
-            logger.warning(f"LDAP authentication failed for user: {username} (wrong password)")
+            logger.warning(f"LDAP authentication failed for user: {masked_username} (wrong password)")
             return False, None, "Invalid password"
 
         # Step 4: Authentication successful — build user info
@@ -239,7 +239,8 @@ def authenticate_ldap_user(
             "auth_type": "ldap"
         }
 
-        logger.info(f"LDAP authentication successful for: {username} (email: {final_email})")
+        masked_email = final_email[:2] + "***" if final_email and len(final_email) > 2 else "***"
+        logger.info(f"LDAP authentication successful for: {masked_username} (email: {masked_email})")
         return True, user_info, "Authentication successful"
 
     except LDAPBindError as e:
