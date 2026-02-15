@@ -11,10 +11,9 @@ from app.models.ldap_config import LdapConfig
 from app.models.users import User
 from app.auth.dependencies import get_current_user, get_admin_user
 from app.logger import logger
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 
-limiter = Limiter(key_func=get_remote_address)
+
+from app.limiter import limiter
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 

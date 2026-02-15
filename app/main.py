@@ -4,8 +4,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.routers import auth, folders, files
 from app.database import engine, Base
@@ -86,8 +85,9 @@ if "dev-secret" in settings.SECRET_KEY or len(settings.SECRET_KEY) < 32:
 
 app = FastAPI(title="Secure Serverless File Portal")
 
+from app.limiter import limiter
+
 # --- CR-02: Rate Limiting Setup ---
-limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
