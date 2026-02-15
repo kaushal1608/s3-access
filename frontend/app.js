@@ -133,8 +133,8 @@ function showToast(type, title, message) {
             <i class="fas ${icons[type]}"></i>
         </div>
         <div class="toast-content">
-            <div class="toast-title">${title}</div>
-            <div class="toast-message">${message}</div>
+            <div class="toast-title">${escapeHtml(title)}</div>
+            <div class="toast-message">${escapeHtml(message)}</div>
         </div>
         <button class="toast-close">
             <i class="fas fa-times"></i>
@@ -626,7 +626,7 @@ async function handleLogin(e) {
             method: 'POST',
             body: JSON.stringify(loginPayload)
         });
-        console.log('Login response:', data);
+
 
         state.token = data.access_token;
         state.user = {
@@ -635,7 +635,7 @@ async function handleLogin(e) {
             role: data.role || 'user',
             auth_type: data.auth_type || 'local'
         };
-        console.log('User state set:', state.user);
+
 
         localStorage.setItem(CONFIG.TOKEN_KEY, data.access_token);
         localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(state.user));
@@ -854,6 +854,15 @@ async function handleFileUpload(file) {
             xhr.send(file);
         });
 
+        // CR-04: Confirm upload with backend after S3 upload succeeds
+        if (uploadData.file_id) {
+            try {
+                await apiRequest(`/files/${uploadData.file_id}/confirm`, { method: 'PATCH' });
+            } catch (confirmErr) {
+                console.error('Upload confirm failed:', confirmErr.message);
+            }
+        }
+
         elements.uploadStatus.textContent = 'Upload complete!';
         elements.progressFill.style.width = '100%';
 
@@ -864,7 +873,7 @@ async function handleFileUpload(file) {
             loadFiles(state.currentFolderId);
         }, 1000);
 
-        showToast('success', 'Upload Complete', `"${file.name}" uploaded`);
+        showToast('success', 'Upload Complete', `"${escapeHtml(file.name)}" uploaded`);
     } catch (error) {
         showToast('error', 'Upload Failed', error.message);
         elements.uploadStatus.textContent = 'Upload failed';
@@ -909,12 +918,20 @@ async function handlePreviewFile(fileId, filename) {
 
         const ext = getFileExtension(filename);
 
+        previewContent.innerHTML = '';
         if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
-            previewContent.innerHTML = `<img src="${data.download_url}" alt="${escapeHtml(filename)}" style="max-width: 100%; max-height: 65vh; object-fit: contain; border-radius: 8px;">`;
+            const img = document.createElement('img');
+            img.src = data.download_url;
+            img.alt = escapeHtml(filename);
+            img.style.cssText = 'max-width:100%;max-height:65vh;object-fit:contain;border-radius:8px';
+            previewContent.appendChild(img);
         } else if (ext === 'pdf') {
-            previewContent.innerHTML = `<iframe src="${data.download_url}" style="width: 80vw; height: 70vh; border: none; border-radius: 8px;"></iframe>`;
+            const iframe = document.createElement('iframe');
+            iframe.src = data.download_url;
+            iframe.style.cssText = 'width:80vw;height:70vh;border:none;border-radius:8px';
+            previewContent.appendChild(iframe);
         } else {
-            previewContent.innerHTML = `<p>Preview not available for this file type.</p>`;
+            previewContent.innerHTML = '<p>Preview not available for this file type.</p>';
         }
 
         openModal(elements.previewModal);
@@ -1226,7 +1243,7 @@ async function checkLdapStatus() {
             }
         }
     } catch (error) {
-        console.log('LDAP status check failed (non-critical):', error.message);
+        // Non-critical: LDAP status check is optional
     }
 }
 
@@ -1343,17 +1360,17 @@ async function handleTestLdapConnection() {
         if (data.success) {
             resultDiv.style.background = 'rgba(34,197,94,0.15)';
             resultDiv.style.color = '#22c55e';
-            resultDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+            resultDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + escapeHtml(data.message);
         } else {
             resultDiv.style.background = 'rgba(239,68,68,0.15)';
             resultDiv.style.color = '#ef4444';
-            resultDiv.innerHTML = '<i class="fas fa-times-circle"></i> ' + data.message;
+            resultDiv.innerHTML = '<i class="fas fa-times-circle"></i> ' + escapeHtml(data.message);
         }
     } catch (error) {
         resultDiv.classList.remove('hidden');
         resultDiv.style.background = 'rgba(239,68,68,0.15)';
         resultDiv.style.color = '#ef4444';
-        resultDiv.innerHTML = '<i class="fas fa-times-circle"></i> ' + (error.message || 'Connection test failed');
+        resultDiv.innerHTML = '<i class="fas fa-times-circle"></i> ' + escapeHtml(error.message || 'Connection test failed');
     } finally {
         hideLoading();
     }
@@ -1364,9 +1381,7 @@ async function handleTestLdapConnection() {
 // ==========================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('CloudVault - Initializing...');
     initEventListeners();
     initAuth();
     checkLdapStatus();  // Check if LDAP is enabled (for login page toggle)
-    console.log('CloudVault - Ready!');
 });

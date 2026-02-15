@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     S3_BUCKET_NAME: str
     AWS_REGION: str = "ap-south-1"
-    CORS_ORIGINS: str = "*"
+    CORS_ORIGINS: str = "http://localhost:8000"  # Override in .env for production
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = "HS256"
 

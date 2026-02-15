@@ -14,6 +14,7 @@ pydantic-settings
 aws-lambda-powertools
 ldap3
 cryptography
+slowapi
 pytest
 requests
 httpx

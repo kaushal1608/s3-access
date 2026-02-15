@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.schemas.auth import (
@@ -11,6 +11,10 @@ from app.models.ldap_config import LdapConfig
 from app.models.users import User
 from app.auth.dependencies import get_current_user, get_admin_user
 from app.logger import logger
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -20,12 +24,14 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 # ==========================================
 
 @router.post("/register", response_model=UserResponse)
-def register(user: UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     return auth_service.register_user(db, user)
 
 
 @router.post("/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, user: UserLogin, db: Session = Depends(get_db)):
     return auth_service.authenticate_user(db, user)
 
 

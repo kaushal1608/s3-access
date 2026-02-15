@@ -10,6 +10,19 @@ from ldap3.utils.conv import escape_filter_chars
 from app.logger import logger
 
 
+def _mask_email(email: str) -> str:
+    """Mask email for safe logging: he***@domain.com"""
+    parts = email.split('@')
+    if len(parts) == 2:
+        name = parts[0]
+        return f"{name[:2]}***@{parts[1]}" if len(name) > 2 else f"{name[0]}***@{parts[1]}"
+    return "***"
+
+def _mask_identifier(value: str) -> str:
+    """Mask identifier for safe logging: 12***"""
+    if len(value) > 2:
+        return f"{value[:2]}***"
+    return "***"
 class AuthService:
     def register_user(self, db: Session, user_data: UserCreate):
         logger.info(f"Registering user: {user_data.email}")
@@ -53,7 +66,7 @@ class AuthService:
                 detail="Email is required for local login"
             )
 
-        logger.info(f"Local auth for: {login_data.email}")
+        logger.info(f"Local auth for: {_mask_email(login_data.email)}")
         user = user_repository.get_by_email(db, login_data.email)
         if not user or not user.password_hash or not verify_password(login_data.password, user.password_hash):
             logger.warning(f"Local auth failed for {login_data.email}")
@@ -63,7 +76,7 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        logger.info(f"Local auth success: {user.id}")
+        logger.info(f"Local auth success: user_id={user.id}")
         access_token = create_access_token(
             data={"sub": user.email, "role": user.role, "user_id": user.id, "auth_type": user.auth_type}
         )
@@ -123,11 +136,11 @@ class AuthService:
             # EIN / Employee ID — use EIN search filter
             search_filter = getattr(ldap_config, 'ein_search_filter', None) or "(&(objectClass=user)(employeeID={ein}))"
             search_filter = search_filter.replace("{ein}", escape_filter_chars(ldap_identifier))
-            logger.info(f"LDAP auth with EIN: {ldap_identifier}")
+            logger.info(f"LDAP auth with EIN: {_mask_identifier(ldap_identifier)}")
         else:
             # Username / sAMAccountName — use standard filter
             search_filter = ldap_config.user_search_filter
-            logger.info(f"LDAP auth with username: {ldap_identifier}")
+            logger.info(f"LDAP auth with username: {_mask_identifier(ldap_identifier)}")
 
         # Authenticate against AD — password is verified by AD, never stored here
         success, user_info, message = authenticate_ldap_user(
@@ -144,7 +157,9 @@ class AuthService:
             ein_attribute=getattr(ldap_config, 'ein_attribute', 'employeeID'),
             use_ssl=ldap_config.use_ssl,
             use_tls=ldap_config.use_tls,
-            ad_domain=ldap_config.ad_domain
+            ad_domain=ldap_config.ad_domain,
+            validate_cert=getattr(ldap_config, 'validate_cert', False),
+            ca_cert_path=getattr(ldap_config, 'ca_cert_path', None)
         )
 
         if not success:

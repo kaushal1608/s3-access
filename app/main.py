@@ -1,8 +1,12 @@
+import uuid
 from pathlib import Path
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from app.routers import auth, folders, files
 from app.database import engine, Base
 from app.config import get_settings
@@ -44,8 +48,28 @@ def run_migrations():
                 conn.execute(text("ALTER TABLE ldap_config ADD COLUMN ein_attribute VARCHAR DEFAULT 'employeeID'"))
                 conn.commit()
                 logger.info("Migration: EIN columns added successfully")
+            
+            # Migration 3: Add TLS validation columns (CR-01)
+            if 'validate_cert' not in columns:
+                logger.info("Migration: Adding 'validate_cert' column to ldap_config table")
+                conn.execute(text("ALTER TABLE ldap_config ADD COLUMN validate_cert BOOLEAN DEFAULT 0"))
+                conn.commit()
+            if 'ca_cert_path' not in columns:
+                logger.info("Migration: Adding 'ca_cert_path' column to ldap_config table")
+                conn.execute(text("ALTER TABLE ldap_config ADD COLUMN ca_cert_path VARCHAR"))
+                conn.commit()
+                logger.info("Migration: TLS validation columns added successfully")
         
-        # Migration 3: create_all for any brand new tables (e.g. ldap_config)
+        # Migration 4: Add upload_status to files table (CR-04)
+        if 'files' in inspector.get_table_names():
+            columns = [col['name'] for col in inspector.get_columns('files')]
+            if 'upload_status' not in columns:
+                logger.info("Migration: Adding 'upload_status' column to files table")
+                conn.execute(text("ALTER TABLE files ADD COLUMN upload_status VARCHAR DEFAULT 'completed'"))
+                conn.commit()
+                logger.info("Migration: 'upload_status' column added successfully")
+        
+        # Final: create_all for any brand new tables (e.g. ldap_config)
         Base.metadata.create_all(bind=engine)
         logger.info("Database migrations complete")
 
@@ -62,12 +86,34 @@ if "dev-secret" in settings.SECRET_KEY or len(settings.SECRET_KEY) < 32:
 
 app = FastAPI(title="Secure Serverless File Portal")
 
-# Logging Middleware
+# --- CR-02: Rate Limiting Setup ---
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# --- CR-11: Request Correlation ID + Logging Middleware ---
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    logger.info(f"Incoming request: {request.method} {request.url.path}")
+    request_id = str(uuid.uuid4())[:8]
+    logger.info(f"[{request_id}] {request.method} {request.url.path}")
     response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    logger.info(f"[{request_id}] Response: {response.status_code}")
     return response
+
+# --- CR-21: Security Headers Middleware ---
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+# --- CR-06: CSRF Protection Documentation ---
+# CSRF Protection: We use Bearer tokens in Authorization header (not cookies),
+# so CSRF attacks cannot replay credentials. If we ever switch to cookie-based auth,
+# we MUST add CSRF middleware (e.g., starlette-csrf).
 
 # CORS Configuration - Allow frontend to communicate with backend
 cors_origins = settings.CORS_ORIGINS.split(",")
@@ -139,4 +185,3 @@ def debug_s3(admin_user=Depends(get_admin_user)):
     return result
 
 handler = Mangum(app)
-

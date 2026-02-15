@@ -13,6 +13,7 @@ class FileResponse(FileBase):
     uploaded_by_id: int
     created_at: datetime
     content_type: Optional[str] = None
+    upload_status: Optional[str] = "completed"
 
     model_config = {"from_attributes": True}
 

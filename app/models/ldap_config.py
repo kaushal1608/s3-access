@@ -40,6 +40,8 @@ class LdapConfig(Base):
     # Use SSL/TLS
     use_ssl = Column(Boolean, default=False)
     use_tls = Column(Boolean, default=True)
+    validate_cert = Column(Boolean, default=False)  # When True, validates server certificate (prevents MITM)
+    ca_cert_path = Column(String, nullable=True)     # Optional path to CA certificate file
 
     # Metadata
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

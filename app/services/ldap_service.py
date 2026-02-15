@@ -52,11 +52,26 @@ def decrypt_password(encrypted_password: str) -> str:
         raise ValueError("Failed to decrypt LDAP bind password. The encryption key may have changed.")
 
 
-def _create_ldap_server(server_url: str, use_ssl: bool = False, use_tls: bool = True) -> Server:
-    """Create an LDAP server connection object."""
+def _create_ldap_server(
+    server_url: str,
+    use_ssl: bool = False,
+    use_tls: bool = True,
+    validate_cert: bool = False,
+    ca_cert_path: Optional[str] = None
+) -> Server:
+    """Create an LDAP server connection object with configurable TLS validation."""
     tls_config = None
     if use_ssl or use_tls:
-        tls_config = Tls(validate=ssl.CERT_NONE)  # In production, use CERT_REQUIRED with CA cert
+        if validate_cert:
+            tls_config = Tls(
+                validate=ssl.CERT_REQUIRED,
+                ca_certs_file=ca_cert_path if ca_cert_path else None
+            )
+            logger.info("LDAP TLS: certificate validation ENABLED")
+        else:
+            tls_config = Tls(validate=ssl.CERT_NONE)
+            logger.warning("LDAP TLS: certificate validation DISABLED — vulnerable to MITM. "
+                           "Set validate_cert=True in LDAP config for production.")
 
     return Server(
         server_url,
@@ -73,14 +88,16 @@ def test_ldap_connection(
     bind_password: str,
     base_dn: str,
     use_ssl: bool = False,
-    use_tls: bool = True
+    use_tls: bool = True,
+    validate_cert: bool = False,
+    ca_cert_path: Optional[str] = None
 ) -> Tuple[bool, str]:
     """
     Test LDAP connection with provided settings.
     Returns (success: bool, message: str)
     """
     try:
-        server = _create_ldap_server(server_url, use_ssl, use_tls)
+        server = _create_ldap_server(server_url, use_ssl, use_tls, validate_cert, ca_cert_path)
         conn = Connection(
             server,
             user=bind_dn,
@@ -127,7 +144,9 @@ def authenticate_ldap_user(
     ein_attribute: str = "employeeID",
     use_ssl: bool = False,
     use_tls: bool = True,
-    ad_domain: Optional[str] = None
+    ad_domain: Optional[str] = None,
+    validate_cert: bool = False,
+    ca_cert_path: Optional[str] = None
 ) -> Tuple[bool, Optional[dict], str]:
     """
     Authenticate a user against LDAP/AD.
@@ -141,7 +160,7 @@ def authenticate_ldap_user(
     Returns: (success, user_info_dict, message)
     """
     try:
-        server = _create_ldap_server(server_url, use_ssl, use_tls)
+        server = _create_ldap_server(server_url, use_ssl, use_tls, validate_cert, ca_cert_path)
 
         # Step 1: Bind with service account
         admin_conn = Connection(
@@ -159,7 +178,8 @@ def authenticate_ldap_user(
         safe_username = escape_filter_chars(username)
         search_filter = user_search_filter.replace("{username}", safe_username).replace("{ein}", safe_username)
 
-        logger.info(f"LDAP search: base={search_base}, filter={search_filter}")
+        # Log search without full filter to avoid PII leak (CR-05)
+        logger.info(f"LDAP search: base={search_base}")
 
         # Request EIN attribute in addition to standard ones
         search_attrs = [email_attribute, username_attribute, ein_attribute, 'cn', 'distinguishedName']
@@ -172,7 +192,8 @@ def authenticate_ldap_user(
 
         if not admin_conn.entries:
             admin_conn.unbind()
-            logger.warning(f"LDAP user not found: {username}")
+            masked = username[:2] + '***' if len(username) > 2 else '***'
+            logger.warning(f"LDAP user not found: {masked}")
             return False, None, "User not found in Active Directory"
 
         user_entry = admin_conn.entries[0]

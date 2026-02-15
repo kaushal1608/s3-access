@@ -11,6 +11,7 @@ class File(Base):
     s3_key = Column(String, unique=True, nullable=False)
     size = Column(BigInteger, nullable=False)
     content_type = Column(String)
+    upload_status = Column(String, default="pending")  # "pending", "completed", "failed"
     folder_id = Column(Integer, ForeignKey("folders.id"), nullable=False)
     uploaded_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

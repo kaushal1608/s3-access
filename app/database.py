@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from app.config import get_settings
 
 # Expecting DATABASE_URL to be set in environment variables
@@ -14,11 +13,22 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
         SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
     )
 else:
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    # Production PostgreSQL: tuned connection pool settings
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        pool_size=10,           # Base number of persistent connections
+        max_overflow=20,        # Allow up to 30 total connections under load
+        pool_pre_ping=True,     # Verify connections are alive before use
+        pool_recycle=300        # Recycle stale connections every 5 minutes
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
+
+# CR-10: Use modern DeclarativeBase instead of deprecated declarative_base()
+class Base(DeclarativeBase):
+    pass
+
 
 def get_db():
     db = SessionLocal()

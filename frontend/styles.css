@@ -1071,3 +1071,22 @@ body {
     margin-right: 0.5rem;
     color: var(--primary);
 }
+
+/* ==========================================================================
+   Accessibility: Reduced Motion
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+
+    .gradient-orb,
+    .toast,
+    .modal-content,
+    .folder-card,
+    .file-row,
+    .btn,
+    .nav-item,
+    .input-wrapper input,
+    .tab-indicator {
+        animation: none !important;
+        transition: none !important;
+    }
+}

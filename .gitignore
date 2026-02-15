@@ -32,3 +32,10 @@ package/
 
 # Logs
 *.log
+
+# Stale/accidental files
+ps.txt
+New folder/
+
+# Reports (generated, not source)
+*_REPORT.md

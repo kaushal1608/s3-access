@@ -1,4 +1,0 @@
-if ($env:ANTIGRAVITY_AGENT -eq "true") {
-    $PS1 = '$ '
-    return
-}
